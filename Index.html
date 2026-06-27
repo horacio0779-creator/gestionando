@@ -1,0 +1,1494 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no"/>
+<title>Gestor</title>
+<style>
+:root{
+  --bg:#0b0e14;--card:#151a24;--accent:#4fffb0;--text:#e2e8f0;--border:#2d3348;
+  --danger:#ff4d6d;--apta:#00e5c8;--warning:#ffb86c;
+  --teal:#2dd4bf;--purple:#818cf8;--orange:#fb923c;--yellow:#facc15;
+  --red:#f43f5e;--green:#10b981;--muted:#64748b;--card2:#1a2236;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Courier New',monospace;min-height:100vh;font-size:14px;}
+button,input,select,textarea{font-family:'Courier New',monospace;}
+
+/* TOP NAV */
+.app-switcher{display:flex;background:#080b11;border-bottom:2px solid var(--border);position:sticky;top:0;z-index:300;}
+.app-tab{flex:1;padding:14px 8px;background:none;border:none;border-bottom:3px solid transparent;color:#7a82a0;font-size:11px;font-weight:700;cursor:pointer;letter-spacing:1px;transition:all .2s;}
+.app-tab.active{color:var(--accent);border-bottom-color:var(--accent);background:rgba(79,255,176,0.04);}
+
+/* TOAST */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:rgba(10,15,25,.97);border:1px solid var(--accent);color:var(--accent);font-size:11px;padding:8px 16px;border-radius:20px;z-index:9999;pointer-events:none;opacity:0;transition:opacity .3s;}
+.toast.show{opacity:1;}
+
+/* APPS */
+#app-gestor{padding-bottom:30px;display:block;}
+#app-vencim{display:none;padding-bottom:30px;font-family:'Courier New',monospace;}
+
+/* GESTOR */
+.g-header{background:#1a1f2e;padding:15px;border-bottom:1px solid var(--border);}
+.g-header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;}
+.g-title{color:var(--accent);font-weight:700;font-size:14px;}
+.g-stats-grid{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:8px;}
+.g-stats-grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;}
+.g-stat-box{border:1px dashed var(--border);padding:10px;border-radius:12px;text-align:center;}
+.g-stat-box.tappable{cursor:pointer;border-color:var(--warning);}
+.g-stat-box.tappable:active{opacity:.7;}
+.g-stat-label{font-size:10px;color:var(--muted);display:block;margin-bottom:4px;}
+.g-stat-val{font-size:18px;font-weight:700;}
+
+.g-tab-bar{display:flex;background:#12161f;border-bottom:1px solid var(--border);position:sticky;top:48px;z-index:100;}
+.g-tab-btn{flex:1;padding:13px;background:none;border:none;border-bottom:2px solid transparent;color:#7a82a0;font-size:11px;font-weight:700;cursor:pointer;}
+.g-tab-btn.active{color:var(--accent);border-bottom-color:var(--accent);}
+
+.g-content{display:none;}
+.g-content.active{display:block;}
+
+.g-card{background:var(--card);border:1px solid var(--border);border-radius:12px;margin:10px;padding:15px;}
+.g-label{display:block;font-size:10px;color:var(--muted);margin-bottom:5px;font-weight:700;text-transform:uppercase;letter-spacing:1px;margin-top:10px;}
+.g-label:first-child{margin-top:0;}
+.g-input,.g-select{width:100%;background:#1c2331;border:1px solid var(--border);padding:11px 12px;color:#fff;border-radius:8px;margin-bottom:8px;font-size:13px;}
+.g-input:focus,.g-select:focus{outline:none;border-color:var(--accent);}
+.g-btn{width:100%;padding:12px;border-radius:10px;border:none;font-weight:700;cursor:pointer;font-size:13px;margin-top:6px;}
+.g-btn-main{background:var(--accent);color:#000;}
+.g-btn-sec{background:#2d3348;color:#fff;}
+.g-btn-danger{background:rgba(255,77,109,0.12);color:var(--danger);border:1px solid var(--danger);}
+.g-btn-icon{background:none;border:none;cursor:pointer;font-size:22px;padding:0;}
+
+.info-hint{background:rgba(79,255,176,0.07);border:1px solid rgba(79,255,176,0.3);border-radius:8px;padding:8px 10px;margin-bottom:8px;font-size:11px;color:var(--accent);}
+
+/* Banner aptas */
+.banner-apta{background:linear-gradient(145deg,rgba(0,229,200,0.1),rgba(21,26,36,1));border:2px solid var(--apta);border-radius:15px;padding:15px;margin:10px;}
+.banner-title{font-size:12px;font-weight:700;color:var(--apta);display:block;margin-bottom:8px;}
+.banner-row{display:flex;justify-content:space-between;margin-top:6px;font-size:13px;}
+.banner-empty{font-size:11px;color:var(--muted);}
+
+/* Historial */
+.filter-box{background:rgba(79,255,176,0.05);border:1px solid var(--accent);padding:10px;border-radius:12px;margin:10px;}
+.filter-sum{color:var(--accent);font-weight:700;font-size:13px;text-align:right;display:block;margin-top:5px;}
+.empty-state{text-align:center;padding:30px;color:var(--muted);font-size:12px;line-height:2;}
+.empty-hist{text-align:center;padding:20px;color:var(--muted);font-size:12px;}
+.sync-pill{display:inline-block;background:rgba(79,255,176,0.12);border:1px solid var(--accent);color:var(--accent);font-size:9px;padding:2px 5px;border-radius:7px;margin-left:5px;vertical-align:middle;}
+
+/* Acordeón tarjetas */
+.tarj-accordion{background:var(--card);border:1px solid var(--border);border-radius:12px;margin:0 10px 8px;overflow:hidden;}
+.tarj-acc-head{display:flex;justify-content:space-between;align-items:center;padding:14px;cursor:pointer;user-select:none;}
+.tarj-acc-head:active{background:rgba(255,255,255,0.03);}
+.mov-acc-label{font-size:13px;font-weight:700;color:var(--text);}
+.mov-acc-fecha{font-size:10px;color:var(--muted);margin-top:2px;}
+.mov-det-row{display:flex;justify-content:space-between;font-size:12px;color:var(--muted);}
+
+/* Acordeón historial */
+.mov-accordion{background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:10px;margin:0 10px 8px;overflow:hidden;}
+.mov-acc-head{display:flex;justify-content:space-between;align-items:center;padding:12px 14px;cursor:pointer;user-select:none;}
+.mov-acc-head:active{background:rgba(255,255,255,0.04);}
+.mov-acc-tipo{font-size:9px;color:var(--muted);letter-spacing:1px;font-weight:700;margin-bottom:2px;}
+.mov-acc-monto{font-size:15px;font-weight:700;}
+.mov-acc-chevron{font-size:13px;color:var(--muted);transition:transform .2s;}
+.mov-acc-body{padding:10px 14px 14px;border-top:1px solid var(--border);background:#0d1018;display:flex;flex-direction:column;gap:7px;}
+.mov-del-btn{margin-top:4px;width:100%;padding:10px;background:rgba(255,77,109,0.1);border:1px solid var(--danger);color:var(--danger);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;}
+
+/* Cfg backup */
+.plat-row{display:flex;gap:5px;align-items:center;margin-bottom:8px;}
+.plat-del{color:var(--danger);background:none;border:none;font-size:18px;cursor:pointer;flex-shrink:0;}
+
+/* PIN LOCK */
+#lock-screen{position:fixed;inset:0;z-index:99999;background:linear-gradient(160deg,#080b11 0%,#0d1424 60%,#0a0f1e 100%);display:flex;flex-direction:column;align-items:center;justify-content:center;}
+#lock-screen .lock-logo{font-family:'Courier New',monospace;font-size:12px;font-weight:700;color:var(--accent);letter-spacing:3px;text-transform:uppercase;margin-bottom:28px;opacity:.6;}
+#lock-screen .lock-title{font-size:20px;font-weight:700;color:#fff;margin-bottom:4px;}
+#lock-screen .lock-sub{font-size:11px;color:var(--muted);margin-bottom:36px;letter-spacing:1px;}
+#pin-dots{display:flex;gap:20px;margin-bottom:16px;}
+.pin-dot{width:18px;height:18px;border-radius:50%;border:2px solid rgba(79,255,176,0.4);background:transparent;transition:background .15s,border-color .15s,box-shadow .15s;}
+.pin-dot.filled{background:var(--accent);border-color:var(--accent);box-shadow:0 0 10px rgba(79,255,176,0.5);}
+.pin-dot.error{background:var(--danger);border-color:var(--danger);box-shadow:0 0 10px rgba(255,77,109,0.5);}
+#lock-status{font-size:12px;font-weight:700;color:var(--danger);min-height:18px;margin-bottom:28px;letter-spacing:1px;}
+#pin-pad{display:grid;grid-template-columns:repeat(3,72px);gap:12px;}
+.pin-key{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,0.05);border:1px solid rgba(255,255,255,0.1);color:#fff;font-size:22px;font-weight:700;cursor:pointer;font-family:'Courier New',monospace;transition:background .1s,transform .1s;-webkit-tap-highlight-color:transparent;}
+.pin-key:active{background:rgba(79,255,176,0.2);transform:scale(.93);}
+.pin-key-empty{background:none;border:none;cursor:default;}
+.pin-key-del{font-size:20px;}
+.lock-byline{margin-top:44px;font-size:10px;color:rgba(255,255,255,0.13);letter-spacing:2px;font-family:'Courier New',monospace;}
+
+/* BYLINE */
+#app-byline{text-align:center;padding:18px 0 6px;font-size:10px;color:rgba(255,255,255,0.12);letter-spacing:2px;font-family:'Courier New',monospace;pointer-events:none;}
+
+/* WIDGET VENCIMIENTOS */
+.venc-widget{background:linear-gradient(145deg,rgba(79,142,247,0.08),rgba(13,16,20,1));border:2px solid rgba(79,142,247,0.4);border-radius:14px;margin:10px;padding:12px;}
+.venc-widget-title{font-size:10px;font-weight:700;color:#4f8ef7;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center;}
+.venc-widget-empty{font-size:11px;color:var(--muted);}
+.venc-mini-card{display:flex;justify-content:space-between;align-items:center;padding:11px 13px;border-radius:10px;border:1px solid;margin-bottom:7px;cursor:pointer;}
+.venc-mini-card.urgent{background:rgba(244,63,94,0.08);border-color:rgba(244,63,94,0.3);}
+.venc-mini-card.warning{background:rgba(245,158,11,0.08);border-color:rgba(245,158,11,0.3);}
+.venc-mini-name{font-size:14px;font-weight:700;}
+.venc-mini-date{font-size:11px;color:var(--muted);margin-top:3px;}
+.venc-mini-right{text-align:right;}
+.venc-mini-amount{font-size:15px;font-weight:700;font-family:'Courier New',monospace;}
+.venc-mini-days{font-size:11px;font-weight:800;text-transform:uppercase;margin-top:2px;}
+
+/* APP VENCIMIENTOS */
+.v-header{background:#141720;border-bottom:1px solid #262c3e;padding:16px;}
+.v-header-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;}
+.v-logo{font-size:18px;font-weight:700;color:#4f8ef7;letter-spacing:1px;}
+.v-date-lbl{font-size:11px;color:var(--muted);font-family:'Courier New',monospace;}
+.v-summary{display:flex;gap:16px;flex-wrap:wrap;margin-bottom:10px;}
+.v-sum-item{font-size:11px;color:var(--muted);}
+.v-sum-item b{color:var(--text);}
+.v-hbtns{display:flex;gap:6px;flex-wrap:wrap;}
+.v-btn{padding:7px 12px;border-radius:8px;border:1px solid #262c3e;background:#1c2030;color:var(--text);font-family:'Courier New',monospace;font-size:11px;font-weight:700;cursor:pointer;}
+.v-btn:active{opacity:.7;}
+.v-btn.primary{background:#4f8ef7;border-color:#4f8ef7;color:#fff;}
+.v-section{padding:16px 16px 0;}
+.v-sec-label{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:10px;display:flex;justify-content:space-between;align-items:center;}
+.v-alerts-grid{display:flex;flex-direction:column;gap:8px;margin-bottom:16px;}
+.v-alert-card{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;border-radius:11px;border:1px solid;cursor:pointer;}
+.v-alert-card.urgent{background:rgba(239,68,68,.08);border-color:rgba(239,68,68,.3);}
+.v-alert-card.warning{background:rgba(245,158,11,.08);border-color:rgba(245,158,11,.3);}
+.v-a-left{display:flex;align-items:center;gap:10px;}
+.v-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.v-dot.red{background:#ef4444;box-shadow:0 0 7px #ef4444;}
+.v-dot.yellow{background:#f59e0b;box-shadow:0 0 7px #f59e0b;}
+.v-a-name{font-weight:700;font-size:14px;}
+.v-a-sub{font-size:11px;color:var(--muted);margin-top:3px;}
+.v-a-right{text-align:right;}
+.v-a-amount{font-size:16px;font-weight:700;font-family:'Courier New',monospace;}
+.v-a-days{font-size:10px;font-weight:800;text-transform:uppercase;}
+.v-filter-bar{display:flex;gap:6px;margin-bottom:10px;flex-wrap:wrap;}
+.v-filter-input,.v-filter-select{background:#141720;border:1px solid #262c3e;border-radius:8px;padding:7px 10px;color:var(--text);font-family:'Courier New',monospace;font-size:11px;}
+.v-filter-input{flex:1;min-width:140px;}
+.v-hist-group{margin-bottom:6px;border:1px solid #262c3e;border-radius:10px;overflow:hidden;}
+.v-hist-ghdr{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;background:#141720;cursor:pointer;font-size:12px;font-weight:700;}
+.v-hist-items{display:none;}
+.v-hist-items.open{display:block;}
+.v-hist-item{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;border-top:1px solid #262c3e;font-size:12px;}
+.v-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:800;align-items:center;justify-content:center;padding:16px;}
+.v-overlay.open{display:flex;}
+.v-modal{background:#141720;border:1px solid #262c3e;border-radius:15px;padding:22px;width:100%;max-width:440px;max-height:90vh;overflow-y:auto;}
+.v-modal-title{font-size:16px;font-weight:700;margin-bottom:14px;color:#4f8ef7;}
+.v-fg{margin-bottom:12px;}
+.v-label{display:block;font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;margin-bottom:5px;}
+.v-input,.v-select{width:100%;background:#0d0f14;border:1px solid #262c3e;border-radius:8px;padding:11px;color:var(--text);font-family:'Courier New',monospace;font-size:13px;}
+.v-input:focus,.v-select:focus{outline:none;border-color:#4f8ef7;}
+.v-modal-footer{display:flex;gap:8px;margin-top:16px;justify-content:flex-end;}
+.v-whatsapp-btn{background:#25D366;color:#fff;text-decoration:none;font-size:9px;font-weight:800;padding:3px 6px;border-radius:4px;display:inline-flex;align-items:center;gap:3px;}
+.v-date-box{background:#0047ab;color:#fff;font-family:'Courier New',monospace;font-size:13px;font-weight:700;padding:2px 7px;border-radius:4px;display:inline-block;}
+
+/* MODAL generico */
+.g-modal{position:fixed;inset:0;background:rgba(0,0,0,.97);padding:20px;z-index:1000;overflow-y:auto;display:none;}
+.g-modal.open{display:block;}
+.g-modal-title{color:var(--accent);font-size:15px;font-weight:700;margin-bottom:15px;}
+</style>
+</head>
+<body>
+
+<!-- LOCK SCREEN -->
+<div id="lock-screen">
+  <div class="lock-logo">GESTIONANDO</div>
+  <div class="lock-title">Ingresá tu PIN</div>
+  <div class="lock-sub">3 dígitos para acceder</div>
+  <div id="pin-dots">
+    <span class="pin-dot" id="dot-0"></span>
+    <span class="pin-dot" id="dot-1"></span>
+    <span class="pin-dot" id="dot-2"></span>
+  </div>
+  <div id="lock-status"></div>
+  <div id="pin-pad">
+    <button class="pin-key" onclick="pinKey('1')">1</button>
+    <button class="pin-key" onclick="pinKey('2')">2</button>
+    <button class="pin-key" onclick="pinKey('3')">3</button>
+    <button class="pin-key" onclick="pinKey('4')">4</button>
+    <button class="pin-key" onclick="pinKey('5')">5</button>
+    <button class="pin-key" onclick="pinKey('6')">6</button>
+    <button class="pin-key" onclick="pinKey('7')">7</button>
+    <button class="pin-key" onclick="pinKey('8')">8</button>
+    <button class="pin-key" onclick="pinKey('9')">9</button>
+    <button class="pin-key pin-key-empty"></button>
+    <button class="pin-key" onclick="pinKey('0')">0</button>
+    <button class="pin-key pin-key-del" onclick="pinDel()">⌫</button>
+  </div>
+  <div class="lock-byline">by horacio0779</div>
+</div>
+
+<!-- TOP NAV -->
+<div class="app-switcher">
+  <button class="app-tab active" id="nav-gestor" onclick="switchApp('gestor')">💳 GESTOR</button>
+  <button class="app-tab" id="nav-vencim" onclick="switchApp('vencim')" style="color:#4f8ef7;">📅 VENCIM.</button>
+</div>
+<div class="toast" id="toast"></div>
+
+<!-- MODAL CONFIRMACIÓN -->
+<div id="confirm-modal" style="display:none;position:fixed;inset:0;z-index:9000;background:rgba(0,0,0,.85);align-items:center;justify-content:center;">
+  <div style="background:#1a2236;border:1px solid var(--border);border-radius:16px;padding:22px;width:calc(100% - 40px);max-width:360px;margin:auto;">
+    <div id="confirm-msg" style="font-size:14px;color:var(--text);margin-bottom:20px;line-height:1.6;text-align:center;"></div>
+    <div style="display:flex;gap:10px;">
+      <button id="confirm-ok" style="flex:1;padding:13px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:var(--red);color:#fff;">CONFIRMAR</button>
+      <button id="confirm-no" style="flex:1;padding:13px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:#2d3348;color:#fff;">CANCELAR</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL AVISO -->
+<div id="aviso-modal" style="display:none;position:fixed;inset:0;z-index:9001;background:rgba(0,0,0,.85);align-items:center;justify-content:center;">
+  <div style="background:#1a2236;border:1px solid var(--accent);border-radius:16px;padding:22px;width:calc(100% - 40px);max-width:360px;margin:auto;">
+    <div id="aviso-msg" style="font-size:14px;color:var(--text);margin-bottom:20px;line-height:1.6;text-align:center;"></div>
+    <button id="aviso-ok" style="width:100%;padding:13px;border-radius:10px;border:none;font-size:13px;font-weight:700;cursor:pointer;background:var(--accent);color:#000;">OK</button>
+  </div>
+</div>
+
+<input type="file" id="g-file-input" accept=".json" style="position:fixed;top:-9999px;left:-9999px;opacity:0;width:1px;height:1px;"/>
+
+<!-- ═══ GESTOR ═══ -->
+<div id="app-gestor">
+
+  <!-- Widget Vencimientos -->
+  <div class="venc-widget" id="gestor-venc-widget" style="margin:8px 10px 0;border-width:2px;padding:0;overflow:hidden;">
+    <div onclick="vToggleWidget('gestor')" style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;cursor:pointer;user-select:none;">
+      <span id="gestor-venc-title" style="font-size:13px;font-weight:700;color:#4f8ef7;letter-spacing:1px;">📅 PRÓX. 7 DÍAS</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:10px;cursor:pointer;color:#4f8ef7;font-weight:700;" onclick="event.stopPropagation();switchApp('vencim')">Ver todo →</span>
+        <span id="gestor-venc-chevron" style="font-size:16px;color:#4f8ef7;transition:transform .25s;">▾</span>
+      </div>
+    </div>
+    <div id="gestor-venc-body" style="padding:0 14px 12px;">
+      <div id="gestor-venc-list"><span class="venc-widget-empty">Sin vencimientos en 7 días</span></div>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="g-header">
+    <div class="g-header-top">
+      <div>
+        <span class="g-title" id="g-fecha-title" style="color:var(--accent);font-size:13px;font-weight:700;"></span>
+        <span id="g-total-ingresado-header" style="font-size:11px;color:var(--green);font-weight:700;margin-left:10px;"></span>
+      </div>
+      <button class="g-btn-icon" onclick="gAbrirCfg()">⚙️</button>
+    </div>
+    <!-- Fila 1: Objetivo + Disp Total -->
+    <div class="g-stats-grid" style="margin-bottom:8px;">
+      <div class="g-stat-box">
+        <span class="g-stat-label">OBJETIVO</span>
+        <span class="g-stat-val" id="g-objetivo-val">$0</span>
+      </div>
+      <div class="g-stat-box">
+        <span class="g-stat-label">DISP. TOTAL</span>
+        <span class="g-stat-val" id="g-disp-val" style="color:var(--accent)">$0</span>
+      </div>
+    </div>
+    <!-- Fila 2: Recargo + Ingresado varios (10%) + Ingreso fijo -->
+    <div class="g-stats-grid-3">
+      <div class="g-stat-box tappable" onclick="gAbrirModalOperar()" title="Nueva operación">
+        <span class="g-stat-label" style="color:var(--warning)">RECARGO ⚡</span>
+        <span class="g-stat-val" id="g-recargo-monto" style="color:var(--warning)">$0</span>
+      </div>
+      <div class="g-stat-box">
+        <span class="g-stat-label" style="color:var(--red)">10% ACUM.</span>
+        <span class="g-stat-val" id="g-acum10-val" style="color:var(--red)">$0</span>
+      </div>
+      <div class="g-stat-box">
+        <span class="g-stat-label" style="color:var(--green)">ING. FIJO</span>
+        <span class="g-stat-val" id="g-ingfijo-val" style="color:var(--green)">$0</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- Sub-tabs -->
+  <div class="g-tab-bar">
+    <button class="g-tab-btn active" id="gt-operar" onclick="gSetTab('operar')">OPERAR</button>
+    <button class="g-tab-btn" id="gt-tarjetas" onclick="gSetTab('tarjetas')">TARJETAS</button>
+    <button class="g-tab-btn" id="gt-historial" onclick="gSetTab('historial')">HISTORIAL</button>
+  </div>
+
+  <!-- TAB OPERAR -->
+  <div class="g-content active" id="gc-operar">
+    <div class="banner-apta" id="g-banner-apta">
+      <span class="banner-title">💳 APTAS (+25 DÍAS)</span>
+      <div id="g-aptas-list"><span class="banner-empty">Ninguna apta por ahora</span></div>
+    </div>
+    <div class="g-card" style="padding:0;overflow:hidden;">
+      <div onclick="gToggleOperar()" style="display:flex;justify-content:space-between;align-items:center;padding:14px 15px;cursor:pointer;user-select:none;background:rgba(79,255,176,0.03);">
+        <span style="font-size:11px;font-weight:700;color:var(--accent);letter-spacing:1px;">⚡ NUEVA OPERACIÓN</span>
+        <span id="op-chevron" style="font-size:20px;color:var(--accent);transition:transform .25s;line-height:1;">＋</span>
+      </div>
+      <div id="op-body" style="display:none;padding:0 15px 15px;border-top:1px solid var(--border);">
+        <label class="g-label">OPERACIÓN</label>
+        <select class="g-select" id="op-tipo" onchange="gOnTipoChange()">
+          <option value="extraccion">Extracción</option>
+          <option value="pago">Pago</option>
+          <option value="ingreso_varios">Ingreso Varios (−10%)</option>
+          <option value="ingreso_fijo">Ingreso Fijo (sin descuento)</option>
+        </select>
+
+        <div id="op-efectivo-section" style="display:none">
+          <label class="g-label">ETIQUETA</label>
+          <input class="g-input" id="op-etiqueta" value="Uber" type="text"/>
+        </div>
+
+        <div id="op-recargo-section" style="display:none">
+          <label class="g-label">¿CON RECARGO?</label>
+          <select class="g-select" id="op-costoextra" onchange="gOnCostoChange()">
+            <option value="si">Sí (% Comisión)</option>
+            <option value="no">No (Sin Costo)</option>
+          </select>
+          <select class="g-select" id="op-plat"></select>
+        </div>
+
+        <div id="op-tarjeta-section">
+          <label class="g-label">TARJETA</label>
+          <select class="g-select" id="op-tarj">
+            <option value="">-- Seleccionar --</option>
+          </select>
+        </div>
+
+        <!-- Preview ingreso varios -->
+        <div id="op-ingreso-varios-preview" style="display:none;background:rgba(79,255,176,0.06);border:1px solid rgba(79,255,176,0.3);border-radius:10px;padding:12px;margin-bottom:10px;">
+          <div style="font-size:10px;color:var(--accent);font-weight:700;letter-spacing:1px;margin-bottom:8px;">INGRESO VARIOS — DISTRIBUCIÓN</div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+            <span style="font-size:12px;color:var(--muted);">Bruto ingresado</span>
+            <span id="prev-bruto" style="font-size:12px;font-weight:700;">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+            <span style="font-size:12px;color:var(--red);">10% (acumulado)</span>
+            <span id="prev-10" style="font-size:12px;font-weight:700;color:var(--red);">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;border-top:1px solid rgba(79,255,176,0.2);padding-top:6px;margin-top:4px;">
+            <span style="font-size:13px;color:var(--accent);font-weight:700;">90% (resta Objetivo)</span>
+            <span id="prev-90" style="font-size:14px;font-weight:900;color:var(--accent);">—</span>
+          </div>
+        </div>
+
+        <!-- Preview ingreso fijo -->
+        <div id="op-ingreso-fijo-preview" style="display:none;background:rgba(16,185,129,0.06);border:1px solid rgba(16,185,129,0.3);border-radius:10px;padding:12px;margin-bottom:10px;">
+          <div style="font-size:10px;color:var(--green);font-weight:700;letter-spacing:1px;margin-bottom:8px;">INGRESO FIJO — SIN DESCUENTO</div>
+          <div style="display:flex;justify-content:space-between;">
+            <span style="font-size:12px;color:var(--muted);">Suma directa al Objetivo</span>
+            <span id="prev-fijo" style="font-size:14px;font-weight:900;color:var(--green);">—</span>
+          </div>
+        </div>
+
+        <label class="g-label">MONTO</label>
+        <input class="g-input" id="op-monto" type="number" inputmode="numeric" placeholder="0" oninput="gPreviewIngreso()"/>
+        <button class="g-btn g-btn-main" onclick="gConfirmarOp()">CARGAR</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TAB TARJETAS -->
+  <div class="g-content" id="gc-tarjetas">
+    <div style="padding:10px;">
+      <button class="g-btn g-btn-main" onclick="gAbrirTarjeta(null)">+ AGREGAR TARJETA</button>
+      <div style="margin-top:10px;background:rgba(0,229,200,0.05);border:1px solid rgba(0,229,200,0.25);border-radius:10px;padding:10px;">
+        <label class="g-label" style="margin-top:0;color:var(--apta)">🔍 BUSCAR TARJETAS</label>
+        <div style="font-size:10px;color:var(--muted);margin-bottom:6px;">Ej: <b style="color:var(--text)">25</b> → ≥25 días · <b style="color:var(--text)">0203</b> → 2 de marzo</div>
+        <input class="g-input" id="tarj-busca-dia" type="text" inputmode="numeric" placeholder="25  ó  0203" style="margin-bottom:0;" oninput="gBuscarPorDia()"/>
+        <div id="tarj-busca-resultado" style="margin-top:8px;font-size:12px;color:var(--muted);"></div>
+      </div>
+    </div>
+    <div id="g-tarjetas-list"></div>
+  </div>
+
+  <!-- TAB HISTORIAL -->
+  <div class="g-content" id="gc-historial">
+    <div style="padding:10px;">
+      <button style="width:100%;padding:10px;border-radius:10px;background:rgba(255,77,109,0.1);border:1px solid var(--danger);color:var(--danger);font-family:'Courier New',monospace;font-size:11px;font-weight:700;cursor:pointer;" onclick="gResetHistorial()">🗑 LIMPIAR HISTORIAL</button>
+    </div>
+    <div class="filter-box">
+      <label class="g-label" style="margin-top:0">🔍 BUSCAR</label>
+      <input class="g-input" style="margin-bottom:0" id="g-filtro" type="text" oninput="gRenderHistorial()" placeholder="Tarjeta, ingreso, extracción..."/>
+      <span class="filter-sum" id="g-filter-sum">Total: $0</span>
+    </div>
+    <div id="g-ops-list"></div>
+  </div>
+</div>
+
+<!-- CFG MODAL -->
+<div class="g-modal" id="g-cfg-modal">
+  <div class="g-modal-title">⚙️ CONFIGURACIÓN</div>
+  <label class="g-label">OBJETIVO ($)</label>
+  <input class="g-input" id="cfg-objetivo" type="number" inputmode="numeric"/>
+  <label class="g-label">RECARGO TOTAL MENSUAL ($) — ajuste manual</label>
+  <input class="g-input" id="cfg-recargo-manual" type="number" inputmode="numeric" placeholder="0"/>
+  <button class="g-btn g-btn-sec" style="margin-bottom:10px" onclick="gGuardarObjetivo()">GUARDAR CAMBIOS</button>
+
+  <label class="g-label">PLATAFORMAS Y RECARGOS</label>
+  <div id="cfg-plats-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);padding:8px;border-radius:8px;margin-bottom:8px;"></div>
+  <button class="g-btn g-btn-sec" style="font-size:11px;padding:10px;margin-bottom:16px" onclick="gAddPlat()">+ AGREGAR PLATAFORMA</button>
+
+  <div style="background:rgba(79,255,176,0.06);border:1px solid rgba(79,255,176,0.25);border-radius:12px;padding:14px;margin-bottom:8px;">
+    <div style="font-size:10px;font-weight:700;color:var(--accent);letter-spacing:1px;margin-bottom:4px;">💾 BACKUP</div>
+    <button class="g-btn g-btn-main" style="margin-bottom:8px;" onclick="exportarTodo()">📤 EXPORTAR</button>
+    <button class="g-btn g-btn-sec" onclick="importarTodo()">📥 IMPORTAR</button>
+  </div>
+
+  <div style="background:rgba(129,140,248,0.07);border:1px solid rgba(129,140,248,0.25);border-radius:12px;padding:14px;margin-bottom:8px;">
+    <div style="font-size:10px;font-weight:700;color:var(--purple);letter-spacing:1px;margin-bottom:10px;">🔑 CAMBIAR PIN</div>
+    <label class="g-label">PIN actual</label>
+    <input class="g-input" id="cfg-pin-actual" type="password" inputmode="numeric" maxlength="3" placeholder="•••" style="letter-spacing:6px;text-align:center;font-size:20px;"/>
+    <label class="g-label">PIN nuevo (3 dígitos)</label>
+    <input class="g-input" id="cfg-pin-nuevo" type="password" inputmode="numeric" maxlength="3" placeholder="•••" style="letter-spacing:6px;text-align:center;font-size:20px;"/>
+    <label class="g-label">Repetir PIN nuevo</label>
+    <input class="g-input" id="cfg-pin-rep" type="password" inputmode="numeric" maxlength="3" placeholder="•••" style="letter-spacing:6px;text-align:center;font-size:20px;"/>
+    <button class="g-btn" style="background:var(--purple);color:#fff;margin-top:6px;" onclick="cfgCambiarPin()">GUARDAR NUEVO PIN</button>
+    <div id="cfg-pin-msg" style="font-size:12px;font-weight:700;text-align:center;margin-top:8px;min-height:16px;"></div>
+  </div>
+
+  <button class="g-btn g-btn-sec" onclick="gCerrarCfg()" style="margin-top:20px">CERRAR</button>
+</div>
+
+<!-- TARJETA MODAL -->
+<div class="g-modal" id="g-tarj-modal">
+  <div class="g-modal-title" id="g-tarj-modal-title">💳 TARJETA</div>
+  <label class="g-label">Nombre</label>
+  <input class="g-input" id="tarj-nombre" type="text" placeholder="Ej: Visa Galicia"/>
+  <label class="g-label">Disponible ($)</label>
+  <input class="g-input" id="tarj-disp" type="number" inputmode="numeric" placeholder="0"/>
+  <label class="g-label">Límite ($)</label>
+  <input class="g-input" id="tarj-limite" type="number" inputmode="numeric" placeholder="0"/>
+  <label class="g-label">Día de Cierre</label>
+  <input class="g-input" id="tarj-cierre" type="number" inputmode="numeric" placeholder="Ej: 20"/>
+  <button class="g-btn g-btn-main" onclick="gGuardarTarjeta()">GUARDAR</button>
+  <button class="g-btn g-btn-danger" id="tarj-del-btn" onclick="gEliminarTarjeta()" style="display:none">ELIMINAR TARJETA</button>
+  <button class="g-btn g-btn-sec" onclick="gCerrarTarjeta()" style="margin-top:4px">CANCELAR</button>
+</div>
+
+<!-- MODAL NUEVA OPERACIÓN (desde header) -->
+<div id="modal-operar" style="display:none;position:fixed;inset:0;z-index:900;background:rgba(0,0,0,.82);align-items:center;justify-content:center;padding:16px;">
+  <div style="background:#141720;border:1px solid #262c3e;border-radius:18px;padding:20px;width:100%;max-width:480px;max-height:88vh;overflow-y:auto;">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+      <span style="font-size:15px;font-weight:700;color:var(--accent);">⚡ NUEVA OPERACIÓN</span>
+      <button onclick="gCerrarModalOperar()" style="background:none;border:none;color:var(--muted);font-size:22px;cursor:pointer;">✕</button>
+    </div>
+    <div style="background:linear-gradient(135deg,#2d3348,#1a1f2e);border:2px dashed var(--warning);border-radius:14px;padding:14px;text-align:center;margin-bottom:16px;display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <div style="font-size:10px;font-weight:700;color:var(--warning);letter-spacing:1px;">RECARGO MES ⚡</div>
+        <div id="modal-recargo-display" style="font-size:22px;font-weight:900;color:var(--warning);margin-top:4px;">$0</div>
+      </div>
+      <button onclick="gResetRecargos()" style="background:var(--danger);color:#fff;border:none;padding:8px 12px;border-radius:10px;font-size:11px;font-weight:700;cursor:pointer;">🔄 RESET</button>
+    </div>
+    <label class="g-label">OPERACIÓN</label>
+    <select class="g-select" id="mop-tipo" onchange="mopOnTipoChange()">
+      <option value="extraccion">Extracción</option>
+      <option value="pago">Pago</option>
+      <option value="ingreso_varios">Ingreso Varios (−10%)</option>
+      <option value="ingreso_fijo">Ingreso Fijo (sin descuento)</option>
+    </select>
+    <div id="mop-efectivo-section" style="display:none">
+      <label class="g-label">ETIQUETA</label>
+      <input class="g-input" id="mop-etiqueta" value="Uber" type="text"/>
+    </div>
+    <div id="mop-recargo-section" style="display:none">
+      <label class="g-label">¿CON RECARGO?</label>
+      <select class="g-select" id="mop-costoextra" onchange="mopOnCostoChange()">
+        <option value="si">Sí (% Comisión)</option>
+        <option value="no">No (Sin Costo)</option>
+      </select>
+      <select class="g-select" id="mop-plat"></select>
+    </div>
+    <div id="mop-tarjeta-section">
+      <label class="g-label">TARJETA</label>
+      <select class="g-select" id="mop-tarj">
+        <option value="">-- Seleccionar --</option>
+      </select>
+    </div>
+    <label class="g-label">MONTO BASE</label>
+    <input class="g-input" id="mop-monto" type="number" inputmode="numeric" placeholder="0"/>
+    <button class="g-btn g-btn-main" style="margin-top:8px;" onclick="mopConfirmar()">CARGAR</button>
+    <button class="g-btn g-btn-sec" style="margin-top:8px;" onclick="gCerrarModalOperar()">Cancelar</button>
+  </div>
+</div>
+
+<!-- ═══ APP VENCIMIENTOS ═══ -->
+<div id="app-vencim">
+  <div class="v-header">
+    <div class="v-header-top">
+      <div>
+        <div class="v-logo">📅 vencim<span style="color:var(--accent)">.</span>ar</div>
+        <div id="v-today-label" class="v-date-lbl"></div>
+      </div>
+      <div class="v-hbtns">
+        <button class="v-btn primary" onclick="vOpenAddModal()">＋ Agregar</button>
+      </div>
+    </div>
+    <div class="v-summary" id="v-summary"></div>
+  </div>
+  <div class="v-section">
+    <div class="v-sec-label">⚡ Próximos Vencimientos (7 días)</div>
+    <div class="v-alerts-grid" id="v-alerts-grid"></div>
+  </div>
+  <div class="v-section">
+    <div class="v-sec-label">
+      <span>📋 Servicios Activos</span>
+      <button onclick="vToggleTable()" style="background:none;border:none;color:#4f8ef7;font-size:10px;font-weight:800;cursor:pointer;letter-spacing:1px;text-transform:uppercase;">[ Contraer ]</button>
+    </div>
+    <div class="v-filter-bar">
+      <input class="v-filter-input" id="v-s-search" placeholder="🔍 Buscar servicio..." oninput="vRender()">
+    </div>
+    <div id="v-tbody"></div>
+  </div>
+  <div class="v-section">
+    <div class="v-sec-label">🗂 Historial de Pagos</div>
+    <div class="v-filter-bar">
+      <input class="v-filter-input" id="v-h-search" placeholder="🔍 Buscar historial..." oninput="vRenderHistory()">
+      <select class="v-filter-select" id="v-h-month" onchange="vRenderHistory()"><option value="">Todos los meses</option></select>
+    </div>
+    <div id="v-hist-list"></div>
+  </div>
+</div>
+
+<!-- MODAL AGREGAR/EDITAR vencim -->
+<div class="v-overlay" id="v-modal-add">
+  <div class="v-modal">
+    <div class="v-modal-title" id="v-add-modal-title">Nuevo Servicio</div>
+    <div class="v-fg">
+      <label class="v-label">Forma de Pago</label>
+      <select class="v-select" id="v-f-via" onchange="vToggleCardInputs()">
+        <option value="Efectivo / Calle">Efectivo / Calle</option>
+        <option value="Tarjeta">Tarjeta de Crédito</option>
+        <option value="Débito / Transf.">Débito / Transferencia</option>
+        <option value="Mercado Pago">Mercado Pago</option>
+      </select>
+    </div>
+    <div id="v-card-inputs" style="display:none;background:rgba(79,142,247,0.06);padding:12px;border-radius:10px;border:1px solid rgba(79,142,247,0.25);margin-bottom:12px;">
+      <div class="v-fg"><label class="v-label">Nombre de la Tarjeta</label><input type="text" class="v-input" id="v-f-card-name" placeholder="Ej: Visa Galicia"></div>
+      <div class="v-fg"><label class="v-label">Día de cierre</label><input type="number" class="v-input" id="v-f-closing-day" min="1" max="31" placeholder="Ej: 24" oninput="vApplyCardClosing()"></div>
+    </div>
+    <div class="v-fg"><label class="v-label">Concepto</label><input id="v-f-name" type="text" class="v-input" placeholder="Ej: Luz, Internet..."></div>
+    <div class="v-fg"><label class="v-label">Fecha de Pago</label><input id="v-f-date" type="date" class="v-input"></div>
+    <div class="v-fg"><label class="v-label">Importe ($)</label><input id="v-f-amount" type="number" class="v-input" placeholder="0.00" step="0.01"></div>
+    <div class="v-fg"><label class="v-label">WhatsApp (opcional)</label><input id="v-f-whatsapp" type="text" class="v-input" placeholder="Número o Link"></div>
+    <div class="v-modal-footer">
+      <button class="v-btn" onclick="vCloseModal('v-modal-add')">Cancelar</button>
+      <button class="v-btn primary" onclick="vSaveService()">Guardar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PAGAR vencim -->
+<div class="v-overlay" id="v-modal-pay">
+  <div class="v-modal" style="max-width:360px;">
+    <div class="v-modal-title">Registrar Pago</div>
+    <div id="v-pm-name" style="font-weight:700;font-size:15px;"></div>
+    <div id="v-pm-amount" style="font-family:'Courier New';font-size:22px;color:#4f8ef7;margin-bottom:14px;"></div>
+    <div class="v-fg"><label class="v-label">Confirme Medio</label><input id="v-pm-via" type="text" class="v-input"></div>
+    <div class="v-modal-footer">
+      <button class="v-btn" onclick="vCloseModal('v-modal-pay')">Cancelar</button>
+      <button class="v-btn primary" onclick="vConfirmPay()">✓ Pagado</button>
+    </div>
+  </div>
+</div>
+
+<div id="app-byline">by horacio0779</div>
+
+<div style="padding:12px 16px 32px;">
+  <button onclick="salirYBackupG()" style="width:100%;padding:16px;background:transparent;border:1px solid #ff4d6d;border-radius:14px;color:#ff4d6d;font-family:'Courier New',monospace;font-size:13px;font-weight:700;letter-spacing:2px;cursor:pointer;">CERRAR Y GUARDAR BACKUP</button>
+</div>
+
+<script>
+var $ = function(id){ return document.getElementById(id); };
+var MONTHS = ["Enero","Febrero","Marzo","Abril","Mayo","Junio","Julio","Agosto","Septiembre","Octubre","Noviembre","Diciembre"];
+
+/* ── Modales ── */
+function mConfirm(msg, onOk){
+  var modal=$('confirm-modal');
+  $('confirm-msg').textContent=msg;
+  modal.style.display='flex';
+  var newOk=$('confirm-ok').cloneNode(true);
+  var newNo=$('confirm-no').cloneNode(true);
+  $('confirm-ok').parentNode.replaceChild(newOk,$('confirm-ok'));
+  $('confirm-no').parentNode.replaceChild(newNo,$('confirm-no'));
+  $('confirm-ok').onclick=function(){modal.style.display='none';onOk();};
+  $('confirm-no').onclick=function(){modal.style.display='none';};
+}
+function mAviso(msg, onOk){
+  var modal=$('aviso-modal');
+  $('aviso-msg').innerHTML=msg;
+  modal.style.display='flex';
+  var btn=$('aviso-ok');
+  var newBtn=btn.cloneNode(true);
+  btn.parentNode.replaceChild(newBtn,btn);
+  $('aviso-ok').onclick=function(){modal.style.display='none';if(onOk)onOk();};
+}
+function showToast(msg){
+  var t=$('toast');
+  t.textContent=msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer=setTimeout(function(){t.classList.remove('show');},3200);
+}
+function fmtG(n){ return '$'+Math.round(n||0).toLocaleString('es-AR'); }
+
+/* ── App Switcher ── */
+function switchApp(app){
+  ['gestor','vencim'].forEach(function(a){
+    $(('app-'+a)).style.display=(a===app)?'block':'none';
+  });
+  $('nav-gestor').classList.toggle('active', app==='gestor');
+  $('nav-vencim').classList.toggle('active', app==='vencim');
+  if(app==='gestor'){ gRenderAll(); vExpandWidgets(); }
+  if(app==='vencim') vRender();
+}
+
+/* ══════════════════════════════════════
+   GESTOR
+══════════════════════════════════════ */
+var STORE_G = 'gestor_jorge_v24_8';
+var gState = {
+  tarjetas:[], operaciones:[], objetivo:0, acum10:0, ingresoFijo:0,
+  config:{ plataformas:[{id:1,nombre:'AstroPay',porcentaje:6},{id:2,nombre:'Mercado Pago',porcentaje:7}] }
+};
+var gEditTarjId = null;
+
+function gLoad(){
+  try{
+    var raw=localStorage.getItem(STORE_G);
+    if(raw){
+      var p=JSON.parse(raw);
+      if(p){ gState=p; }
+      if(!gState.config) gState.config={plataformas:[{id:1,nombre:'AstroPay',porcentaje:6}]};
+      if(!gState.config.plataformas) gState.config.plataformas=[{id:1,nombre:'AstroPay',porcentaje:6}];
+      if(!gState.tarjetas) gState.tarjetas=[];
+      if(!gState.operaciones) gState.operaciones=[];
+      if(gState.acum10===undefined) gState.acum10=0;
+      if(gState.ingresoFijo===undefined) gState.ingresoFijo=0;
+    }
+  }catch(e){}
+}
+function gSave(){
+  try{ localStorage.setItem(STORE_G,JSON.stringify(gState)); }catch(e){}
+  autoBackupG();
+}
+
+function gGetDias(d){
+  if(!d) return 0;
+  var h=new Date();
+  var c=new Date(h.getFullYear(),h.getMonth(),parseInt(d));
+  if(c<=h) c.setMonth(c.getMonth()+1);
+  return Math.ceil((c-h)/86400000);
+}
+
+function vToggleWidget(which){
+  var body=$(which+'-venc-body');
+  var chev=$(which+'-venc-chevron');
+  if(!body) return;
+  var open=body.style.display!=='none';
+  body.style.display=open?'none':'block';
+  if(chev) chev.style.transform=open?'rotate(-90deg)':'';
+}
+function vCollapseWidgets(){
+  var body=$('gestor-venc-body'), chev=$('gestor-venc-chevron');
+  if(body) body.style.display='none';
+  if(chev) chev.style.transform='rotate(-90deg)';
+}
+function vExpandWidgets(){
+  var body=$('gestor-venc-body'), chev=$('gestor-venc-chevron');
+  if(body) body.style.display='block';
+  if(chev) chev.style.transform='';
+}
+
+function gToggleOperar(){
+  var body=$('op-body'), chev=$('op-chevron');
+  if(!body) return;
+  var open=body.style.display==='block';
+  body.style.display=open?'none':'block';
+  if(chev){ chev.textContent=open?'＋':'－'; chev.style.color=open?'var(--accent)':'var(--muted)'; }
+  if(!open) vCollapseWidgets();
+}
+
+function gSetTab(tab){
+  ['operar','tarjetas','historial'].forEach(function(t){
+    $('gc-'+t).classList.toggle('active',t===tab);
+    $('gt-'+t).classList.toggle('active',t===tab);
+  });
+  if(tab==='tarjetas') gRenderTarjetas();
+  if(tab==='historial') gRenderHistorial();
+}
+
+function gRenderAll(){
+  gSetFechas();
+  gRenderHeader();
+  gRenderOperar();
+  gRenderTarjetas();
+  gRenderHistorial();
+}
+
+function gSetFechas(){
+  var dias=['domingo','lunes','martes','miércoles','jueves','viernes','sábado'];
+  var d=new Date();
+  var str=dias[d.getDay()].charAt(0).toUpperCase()+dias[d.getDay()].slice(1)+' '+String(d.getDate()).padStart(2,'0');
+  if($('g-fecha-title')) $('g-fecha-title').textContent='💳 '+str;
+}
+
+function gRenderHeader(){
+  var disp=gState.tarjetas.reduce(function(a,t){return a+(Number(t.disponible)||0);},0);
+  $('g-objetivo-val').textContent=fmtG(gState.objetivo);
+  $('g-disp-val').textContent=fmtG(disp);
+  var recAuto=(gState.operaciones||[])
+    .filter(function(o){return o.tipo==='extraccion'&&o.costoExtra==='si'&&!o.reseteado;})
+    .reduce(function(a,o){return a+(o.recargo||0);},0);
+  var recManual=gState.recargoManual||0;
+  if($('g-recargo-monto')) $('g-recargo-monto').textContent=fmtG(recAuto+recManual);
+  if($('g-acum10-val')) $('g-acum10-val').textContent=fmtG(gState.acum10||0);
+  if($('g-ingfijo-val')) $('g-ingfijo-val').textContent=fmtG(gState.ingresoFijo||0);
+
+  // Total ingresado (varios + fijo) al lado de la fecha
+  var totalIng=((gState.acum10||0)/0.1*0.9)+(gState.ingresoFijo||0);
+  // Mejor: calcularlo directo de operaciones
+  var totalIngresado=(gState.operaciones||[])
+    .filter(function(o){return o.tipo==='ingreso_varios'||o.tipo==='ingreso_fijo';})
+    .reduce(function(a,o){return a+(o.monto||0);},0);
+  if($('g-total-ingresado-header') && totalIngresado>0)
+    $('g-total-ingresado-header').textContent='· '+fmtG(totalIngresado)+' ingresado';
+  else if($('g-total-ingresado-header'))
+    $('g-total-ingresado-header').textContent='';
+}
+
+function gRenderOperar(){
+  var pSel=$('op-plat');
+  pSel.innerHTML='';
+  (gState.config.plataformas||[]).forEach(function(p){
+    var o=document.createElement('option');
+    o.value=p.id; o.textContent=p.nombre+' ('+p.porcentaje+'%)';
+    pSel.appendChild(o);
+  });
+  var tSel=$('op-tarj');
+  tSel.innerHTML='<option value="">-- Seleccionar --</option>';
+  gState.tarjetas.forEach(function(t){
+    var o=document.createElement('option');
+    o.value=t.id; o.textContent=t.nombre;
+    tSel.appendChild(o);
+  });
+  var aptas=gState.tarjetas.filter(function(t){return gGetDias(t.cierre)>=25;});
+  var bl=$('g-aptas-list');
+  if(aptas.length===0){
+    bl.innerHTML='<span class="banner-empty">Ninguna apta por ahora</span>';
+  } else {
+    bl.innerHTML=aptas.map(function(t){
+      return '<div class="banner-row"><span>'+t.nombre+'</span><b>'+fmtG(t.disponible)+'</b></div>';
+    }).join('');
+  }
+}
+
+function gOnTipoChange(){
+  var tipo=$('op-tipo').value;
+  $('op-efectivo-section').style.display='none';
+  $('op-recargo-section').style.display=tipo==='extraccion'?'block':'none';
+  $('op-tarjeta-section').style.display=(tipo==='extraccion'||tipo==='pago')?'block':'none';
+  $('op-ingreso-varios-preview').style.display=tipo==='ingreso_varios'?'block':'none';
+  $('op-ingreso-fijo-preview').style.display=tipo==='ingreso_fijo'?'block':'none';
+  gPreviewIngreso();
+}
+function gOnCostoChange(){
+  var con=$('op-costoextra').value==='si';
+  $('op-plat').style.display=con?'block':'none';
+}
+
+function gPreviewIngreso(){
+  var tipo=($('op-tipo')||{value:''}).value;
+  var monto=parseFloat(($('op-monto')||{value:''}).value)||0;
+  if(tipo==='ingreso_varios' && monto>0){
+    var n10=monto*0.1, n90=monto*0.9;
+    if($('prev-bruto')) $('prev-bruto').textContent=fmtG(monto);
+    if($('prev-10')) $('prev-10').textContent=fmtG(n10);
+    if($('prev-90')) $('prev-90').textContent=fmtG(n90);
+  }
+  if(tipo==='ingreso_fijo' && monto>0){
+    if($('prev-fijo')) $('prev-fijo').textContent=fmtG(monto);
+  }
+}
+
+function gConfirmarOp(){
+  var tipo=$('op-tipo').value;
+  var monto=parseFloat($('op-monto').value);
+  if(!monto||monto<=0){ mAviso('Ingresá un monto válido'); return; }
+  if((tipo==='extraccion'||tipo==='pago') && !$('op-tarj').value){ mAviso('Seleccioná una tarjeta'); return; }
+
+  var mFT=monto, mFO=monto, rec=0;
+  var tarjNombre='';
+  var nT=JSON.parse(JSON.stringify(gState.tarjetas));
+  var nO=gState.objetivo||0;
+
+  if(tipo==='extraccion'){
+    var platId=$('op-plat').value;
+    if($('op-costoextra').value==='si'){
+      var plat=(gState.config.plataformas||[]).find(function(p){return p.id==platId;});
+      var pct=plat?parseFloat(plat.porcentaje)||0:0;
+      rec=monto*(pct/100);
+      mFT=monto+rec;
+    }
+    var idx=nT.findIndex(function(t){return t.id==$('op-tarj').value;});
+    if(idx!==-1){ tarjNombre=nT[idx].nombre; nT[idx].disponible-=mFT; }
+    nO-=monto;
+  } else if(tipo==='pago'){
+    var idx2=nT.findIndex(function(t){return t.id==$('op-tarj').value;});
+    if(idx2!==-1){ tarjNombre=nT[idx2].nombre; nT[idx2].disponible+=monto; }
+  } else if(tipo==='ingreso_varios'){
+    // El 90% resta del objetivo (es lo que "sale"), el 10% va al acumulado
+    var n90=monto*0.9, n10=monto*0.1;
+    nO-=n90;
+    gState.acum10=(gState.acum10||0)+n10;
+    mFO=n90;
+  } else if(tipo==='ingreso_fijo'){
+    // Suma directa al objetivo
+    nO+=monto;
+    gState.ingresoFijo=(gState.ingresoFijo||0)+monto;
+  }
+
+  gState.tarjetas=nT;
+  gState.objetivo=nO;
+  gState.operaciones.unshift({
+    id:Date.now(), tipo:tipo,
+    etiqueta:$('op-etiqueta').value||tipo,
+    costoExtra:$('op-costoextra').value,
+    recargo:rec,
+    totalMonto:mFO, totalTarjeta:mFT,
+    nombreTarj:tarjNombre, monto:monto,
+    fecha:new Date().toLocaleString(),
+    reseteado:false
+  });
+  gSave();
+  $('op-monto').value='';
+  gPreviewIngreso();
+  gRenderAll();
+  var opBody=$('op-body'), opChev=$('op-chevron');
+  if(opBody) opBody.style.display='none';
+  if(opChev){ opChev.textContent='＋'; opChev.style.color='var(--accent)'; }
+  var msgs={extraccion:'✅ Extracción guardada',pago:'✅ Pago registrado',ingreso_varios:'✅ Ingreso Varios: 90% restado del Objetivo · 10% acumulado',ingreso_fijo:'✅ Ingreso Fijo sumado al Objetivo'};
+  mAviso(msgs[tipo]||'✅ Operación guardada');
+}
+
+function gRenderTarjetas(){
+  var el=$('g-tarjetas-list');
+  if(!gState.tarjetas.length){
+    el.innerHTML='<div class="empty-state">Sin tarjetas aún.<br/>Tocá el botón para agregar.</div>';
+    return;
+  }
+  var hoy=new Date(); hoy.setHours(23,59,59,999);
+  el.innerHTML=gState.tarjetas.map(function(t){
+    var dias=gGetDias(t.cierre), id=t.id;
+    var resumenHTML='';
+    if(t.cierre){
+      var diaC=parseInt(t.cierre), ahora=new Date(), ultCierre;
+      if(ahora.getDate()>=diaC){ ultCierre=new Date(ahora.getFullYear(),ahora.getMonth(),diaC,0,0,0,0); }
+      else { ultCierre=new Date(ahora.getFullYear(),ahora.getMonth()-1,diaC,0,0,0,0); }
+      var proxCierre=new Date(ultCierre.getFullYear(),ultCierre.getMonth()+1,diaC,0,0,0,0);
+      var fD=ultCierre.getDate()+'/'+(ultCierre.getMonth()+1);
+      var fH=String(ahora.getDate()).padStart(2,'0')+'/'+(ahora.getMonth()+1);
+      var fP=proxCierre.getDate()+'/'+(proxCierre.getMonth()+1);
+      var ops=(gState.operaciones||[]).filter(function(o){
+        if(o.tipo==='ingreso_varios'||o.tipo==='ingreso_fijo') return false;
+        if((o.nombreTarj||'').toLowerCase()!==(t.nombre||'').toLowerCase()) return false;
+        var f=new Date(o.fecha); if(isNaN(f.getTime())) return true;
+        return f>=ultCierre&&f<=hoy;
+      });
+      var totalExtrac=ops.filter(function(o){return o.tipo==='extraccion';}).reduce(function(a,o){return a+(o.totalTarjeta||o.monto||0);},0);
+      var totalPagos=ops.filter(function(o){return o.tipo==='pago';}).reduce(function(a,o){return a+(o.monto||0);},0);
+      var consumo=totalExtrac-totalPagos;
+      var consumoColor=consumo>0?'var(--danger)':'var(--green)';
+      var lineas=ops.length?ops.map(function(o){
+        var esP=o.tipo==='pago', m=esP?(o.monto||0):(o.totalTarjeta||o.monto||0);
+        return '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-bottom:1px solid rgba(255,255,255,0.04);">'
+          +'<span style="color:var(--muted)">'+(esP?'💳 Pago':'🔻 Extrac.')+'</span>'
+          +'<span style="font-weight:700;color:'+(esP?'var(--green)':'var(--danger)')+';">'+(esP?'−':'')+fmtG(m)+'</span>'
+          +'</div>';
+      }).join(''):'<div style="font-size:11px;color:var(--muted);padding:4px 0;">Sin movimientos desde el cierre</div>';
+      resumenHTML='<div style="margin-top:10px;background:rgba(255,255,255,0.03);border:1px solid rgba(79,255,176,0.18);border-radius:8px;padding:10px 11px;">'
+        +'<div style="font-size:9px;font-weight:700;color:var(--accent);letter-spacing:1px;margin-bottom:7px;">📋 DESDE CIERRE '+fD+' · HOY '+fH+'</div>'
+        +lineas
+        +(totalPagos>0?'<div style="display:flex;justify-content:space-between;margin-top:6px;padding-top:5px;border-top:1px solid rgba(255,255,255,0.06);font-size:11px;"><span style="color:var(--muted)">Extracciones</span><span style="color:var(--danger);font-weight:700">'+fmtG(totalExtrac)+'</span></div><div style="display:flex;justify-content:space-between;font-size:11px;margin-top:3px;"><span style="color:var(--muted)">Pagos</span><span style="color:var(--green);font-weight:700">−'+fmtG(totalPagos)+'</span></div>':'')
+        +'<div style="display:flex;justify-content:space-between;margin-top:7px;padding-top:6px;border-top:1px solid rgba(79,255,176,0.2);"><span style="font-size:12px;font-weight:700;color:var(--text);">Consumo neto</span><span style="font-size:15px;font-weight:900;color:'+consumoColor+';">'+fmtG(consumo)+'</span></div>'
+        +'<div style="font-size:9px;color:var(--muted);margin-top:5px;text-align:right;">Próx. cierre: '+fP+'</div>'
+        +'</div>';
+    }
+    return '<div class="tarj-accordion" id="tarjacc-'+id+'">'
+      +'<div class="tarj-acc-head" onclick="gToggleTarj(\''+id+'\')">'
+        +'<div style="flex:1;min-width:0"><div class="mov-acc-label" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+t.nombre+'</div>'+(t.cierre?'<div class="mov-acc-fecha">Cierre día '+t.cierre+' · '+dias+'d</div>':'')+'</div>'
+        +'<div style="display:flex;align-items:center;gap:8px;flex-shrink:0"><span style="font-size:14px;font-weight:700;color:var(--accent)">'+fmtG(t.disponible)+'</span><span style="font-size:13px;color:var(--muted);transition:transform .2s" id="tarjchev-'+id+'">▾</span></div>'
+      +'</div>'
+      +'<div id="tarjbody-'+id+'" style="display:none;padding:10px 14px 14px;border-top:1px solid var(--border);background:#0d1018;flex-direction:column;gap:7px;">'
+        +(t.limite?'<div class="mov-det-row"><span>Límite:</span><span>'+fmtG(t.limite)+'</span></div>':'')
+        +'<div class="mov-det-row"><span>Disponible:</span><span style="color:var(--accent);font-weight:700">'+fmtG(t.disponible)+'</span></div>'
+        +(t.cierre?'<div class="mov-det-row"><span>Días al cierre:</span><span style="color:var(--yellow);font-weight:700">'+dias+' días</span></div>':'')
+        +resumenHTML
+        +'<button onclick="gAbrirTarjeta(\''+id+'\')" style="margin-top:10px;width:100%;padding:10px;background:#2d3348;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">✏️ EDITAR TARJETA</button>'
+      +'</div>'
+    +'</div>';
+  }).join('');
+}
+
+function gToggleTarj(id){
+  var body=document.getElementById('tarjbody-'+id);
+  var chev=document.getElementById('tarjchev-'+id);
+  if(!body) return;
+  var abierto=body.style.display==='flex';
+  gState.tarjetas.forEach(function(t){
+    var b=document.getElementById('tarjbody-'+t.id);
+    var c=document.getElementById('tarjchev-'+t.id);
+    if(b) b.style.display='none';
+    if(c) c.style.transform='';
+  });
+  if(!abierto){ body.style.display='flex'; body.style.flexDirection='column'; if(chev) chev.style.transform='rotate(180deg)'; }
+}
+
+function gBuscarPorDia(){
+  var raw=($('tarj-busca-dia').value||'').trim();
+  var res=$('tarj-busca-resultado');
+  if(!raw){res.innerHTML='';return;}
+  var diaBusca=null, mesBusca=null;
+  if(raw.length<=2){
+    var n=parseInt(raw);
+    if(!n||n<1||n>31){res.innerHTML='<span style="color:var(--red)">Ej: 15 o 0203</span>';return;}
+    var found=gState.tarjetas.filter(function(t){return gGetDias(t.cierre)>=n;});
+    if(!found.length){res.innerHTML='<span style="color:var(--muted)">Ninguna con ≥'+n+' días</span>';return;}
+    res.innerHTML='<div style="font-size:10px;color:var(--muted);margin-bottom:6px">CON ≥'+n+' DÍAS AL CIERRE</div>'
+      +found.map(function(t){var d=gGetDias(t.cierre);return '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span>'+t.nombre+'</span><span style="color:var(--accent);font-weight:700">'+fmtG(t.disponible)+' <span style="color:var(--yellow);font-size:11px">'+d+'d</span></span></div>';}).join('');
+    return;
+  }
+  if(raw.length===3||raw.length===4){
+    if(raw.length===3){diaBusca=parseInt(raw.slice(0,1));mesBusca=parseInt(raw.slice(1));}
+    else{diaBusca=parseInt(raw.slice(0,2));mesBusca=parseInt(raw.slice(2));}
+    if(!diaBusca||!mesBusca||diaBusca<1||diaBusca>31||mesBusca<1||mesBusca>12){res.innerHTML='<span style="color:var(--red)">Formato: 0203 = 2 de marzo</span>';return;}
+    var hoy2=new Date();
+    var fechaObj=new Date(hoy2.getFullYear(),mesBusca-1,diaBusca);
+    if(fechaObj<=hoy2) fechaObj.setFullYear(fechaObj.getFullYear()+1);
+    var diasHasta=Math.ceil((fechaObj-hoy2)/86400000);
+    var mesN=['Ene','Feb','Mar','Abr','May','Jun','Jul','Ago','Sep','Oct','Nov','Dic'];
+    var etiq=diaBusca+' de '+mesN[mesBusca-1];
+    var exactas=gState.tarjetas.filter(function(t){return parseInt(t.cierre)===diaBusca;});
+    var aptas=gState.tarjetas.filter(function(t){return gGetDias(t.cierre)>=diasHasta;});
+    var html='<div style="font-size:10px;color:var(--muted);margin-bottom:6px">'+etiq.toUpperCase()+' → '+diasHasta+' DÍAS</div>';
+    if(exactas.length){ html+='<div style="font-size:10px;color:var(--teal);margin:4px 0 2px">🎯 Cierre exacto:</div>'; html+=exactas.map(function(t){return '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span>'+t.nombre+'</span><span style="color:var(--accent);font-weight:700">'+fmtG(t.disponible)+' <span style="color:var(--teal);font-size:11px">✓</span></span></div>';}).join('');}
+    if(aptas.length&&!exactas.length){ html+='<div style="font-size:10px;color:var(--yellow);margin:4px 0 2px">⚡ Aptas:</div>'; html+=aptas.map(function(t){return '<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border)"><span>'+t.nombre+'</span><span style="color:var(--accent);font-weight:700">'+fmtG(t.disponible)+' <span style="color:var(--yellow);font-size:11px">'+gGetDias(t.cierre)+'d</span></span></div>';}).join('');}
+    if(!exactas.length&&!aptas.length) html+='<span style="color:var(--muted)">Ninguna apta.</span>';
+    res.innerHTML=html; return;
+  }
+  res.innerHTML='<span style="color:var(--red)">Formato: 15 o 0203</span>';
+}
+
+function gResetHistorial(){
+  mConfirm('¿Limpiar TODO el historial?\nNO modifica saldos.', function(){
+    gState.operaciones=[];
+    gSave(); gRenderHistorial(); showToast('✅ Historial limpiado');
+  });
+}
+function gResetRecargos(){
+  mConfirm('¿Poner recargo en cero?', function(){
+    gState.operaciones=(gState.operaciones||[]).map(function(o){
+      return Object.assign({},o,{reseteado:(o.tipo==='extraccion'&&o.costoExtra==='si')?true:o.reseteado});
+    });
+    gSave(); gRenderHistorial();
+  });
+}
+function gBorrarOp(id){
+  mConfirm('¿Eliminar del historial?', function(){
+    // Si era ingreso varios, revertir acum10 e ingreso fijo
+    var op=(gState.operaciones||[]).find(function(x){return x.id===id;});
+    if(op){
+      if(op.tipo==='ingreso_varios'){
+        var n10=(op.monto||0)*0.1;
+        gState.acum10=Math.max(0,(gState.acum10||0)-n10);
+        gState.objetivo=(gState.objetivo||0)+((op.monto||0)*0.9);
+      } else if(op.tipo==='ingreso_fijo'){
+        gState.ingresoFijo=Math.max(0,(gState.ingresoFijo||0)-(op.monto||0));
+        gState.objetivo=Math.max(0,(gState.objetivo||0)-(op.monto||0));
+      }
+    }
+    gState.operaciones=gState.operaciones.filter(function(x){return x.id!==id;});
+    gSave(); gRenderAll();
+  });
+}
+
+function gRenderHistorial(){
+  var recAuto=(gState.operaciones||[])
+    .filter(function(o){return o.tipo==='extraccion'&&o.costoExtra==='si'&&!o.reseteado;})
+    .reduce(function(a,o){return a+(o.recargo||0);},0);
+  var recManual=gState.recargoManual||0;
+  if($('g-recargo-monto')) $('g-recargo-monto').textContent=fmtG(recAuto+recManual);
+
+  var filtro=($('g-filtro')||{value:''}).value.toLowerCase();
+  var ops=(gState.operaciones||[]).filter(function(o){
+    var n=o.tipo==='extraccion'||(o.tipo==='pago')?(o.nombreTarj||''):(o.etiqueta||o.tipo||'');
+    return n.toLowerCase().includes(filtro)||o.tipo.toLowerCase().includes(filtro);
+  });
+  var total=ops.reduce(function(a,o){return a+(parseFloat(o.monto)||0);},0);
+  if($('g-filter-sum')) $('g-filter-sum').textContent='Total: '+fmtG(total);
+
+  if(!ops.length){
+    $('g-ops-list').innerHTML='<div class="empty-hist">Sin operaciones'+(filtro?' con ese filtro':' aún')+'.</div>';
+    return;
+  }
+  var MAX=50, shown=ops.slice(0,MAX);
+  var TIPO_COLORS={extraccion:'var(--danger)',pago:'var(--green)',ingreso_varios:'var(--accent)',ingreso_fijo:'var(--green)'};
+  var TIPO_ICONS={extraccion:'🔻',pago:'💳',ingreso_varios:'📥 VARIOS',ingreso_fijo:'💰 FIJO'};
+  var html=shown.map(function(o){
+    var label, monto, signo='+';
+    if(o.tipo==='extraccion'){label=o.nombreTarj||'';monto=o.totalTarjeta;signo='−';}
+    else if(o.tipo==='pago'){label=o.nombreTarj||'';monto=o.monto;signo='+';}
+    else if(o.tipo==='ingreso_varios'){label='Ingreso Varios';monto=o.monto;signo='+';}
+    else if(o.tipo==='ingreso_fijo'){label='Ingreso Fijo';monto=o.monto;signo='+';}
+    else{label=o.etiqueta||o.tipo;monto=o.monto||o.totalMonto;signo='+';};
+    var opac=o.reseteado?'opacity:.5;':'';
+    var color=TIPO_COLORS[o.tipo]||'var(--text)';
+    var tipoBadge=TIPO_ICONS[o.tipo]||o.tipo.toUpperCase();
+    var extras='';
+    if(o.tipo==='ingreso_varios') extras='<div class="mov-det-row"><span style="color:var(--red)">10% acumulado:</span><span style="color:var(--red)">'+fmtG((o.monto||0)*0.1)+'</span></div><div class="mov-det-row"><span style="color:var(--accent)">90% restado:</span><span style="color:var(--accent)">'+fmtG((o.monto||0)*0.9)+'</span></div>';
+    if(o.recargo&&o.recargo>0) extras+='<div class="mov-det-row"><span style="color:var(--warning)">Recargo:</span><span style="color:var(--warning)">+'+fmtG(o.recargo)+'</span></div>';
+    return '<div class="mov-accordion" style="'+opac+'" id="mova-'+o.id+'">'
+      +'<div class="mov-acc-head" onclick="gToggleMov('+o.id+')">'
+      +'<div><div class="mov-acc-tipo">'+tipoBadge+'</div><div class="mov-acc-label">'+label+'</div><div class="mov-acc-fecha">'+o.fecha+'</div></div>'
+      +'<div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px"><span class="mov-acc-monto" style="color:'+color+'">'+signo+fmtG(monto)+'</span><span class="mov-acc-chevron" id="movc-'+o.id+'">▾</span></div>'
+      +'</div>'
+      +'<div class="mov-acc-body" id="movb-'+o.id+'" style="display:none">'
+      +'<div class="mov-det-row"><span>Monto bruto:</span><span>'+fmtG(o.monto||monto)+'</span></div>'
+      +extras
+      +'<button class="mov-del-btn" onclick="gBorrarOp('+o.id+')">🗑 ELIMINAR</button>'
+      +'</div></div>';
+  }).join('');
+  if(ops.length>MAX) html+='<div style="text-align:center;color:var(--muted);font-size:11px;padding:10px;">Últimas '+MAX+' de '+ops.length+'</div>';
+  $('g-ops-list').innerHTML=html;
+}
+
+function gToggleMov(id){
+  var body=$('movb-'+id), chev=$('movc-'+id);
+  if(!body) return;
+  var open=body.style.display==='block';
+  body.style.display=open?'none':'block';
+  if(chev) chev.style.transform=open?'':'rotate(180deg)';
+}
+
+/* CFG */
+function gAbrirCfg(){
+  $('cfg-objetivo').value=gState.objetivo||0;
+  $('cfg-recargo-manual').value=gState.recargoManual||0;
+  gRenderPlats();
+  $('g-cfg-modal').classList.add('open');
+}
+function gCerrarCfg(){ $('g-cfg-modal').classList.remove('open'); }
+function gGuardarObjetivo(){
+  gState.objetivo=parseFloat($('cfg-objetivo').value)||0;
+  gState.recargoManual=parseFloat($('cfg-recargo-manual').value)||0;
+  gSave(); gRenderHeader(); gRenderHistorial();
+  showToast('✅ Configuración guardada');
+}
+function gRenderPlats(){
+  $('cfg-plats-list').innerHTML=(gState.config.plataformas||[]).map(function(p){
+    return '<div class="plat-row">'
+      +'<input class="g-input" style="flex:2;margin-bottom:0;font-size:12px" value="'+p.nombre+'" oninput="gUpdPlatNom('+p.id+',this.value)"/>'
+      +'<input class="g-input" style="flex:1;margin-bottom:0;font-size:12px" type="number" value="'+p.porcentaje+'" oninput="gUpdPlatPct('+p.id+',this.value)"/>'
+      +'<button class="plat-del" onclick="gDelPlat('+p.id+')">✕</button>'
+      +'</div>';
+  }).join('');
+}
+function gUpdPlatNom(id,v){ var p=(gState.config.plataformas||[]).find(function(x){return x.id==id;});if(p){p.nombre=v;gSave();} }
+function gUpdPlatPct(id,v){ var p=(gState.config.plataformas||[]).find(function(x){return x.id==id;});if(p){p.porcentaje=v;gSave();} }
+function gAddPlat(){ gState.config.plataformas.push({id:Date.now(),nombre:'Nueva',porcentaje:0}); gSave(); gRenderPlats(); }
+function gDelPlat(id){
+  if(gState.config.plataformas.length<=1){ mAviso('Dejá al menos una plataforma.'); return; }
+  gState.config.plataformas=gState.config.plataformas.filter(function(p){return p.id!=id;});
+  gSave(); gRenderPlats();
+}
+
+/* Tarjetas */
+function gAbrirTarjeta(id){
+  gEditTarjId=id;
+  var modal=$('g-tarj-modal');
+  if(id){
+    var t=gState.tarjetas.find(function(x){return x.id==id;});
+    if(!t) return;
+    $('g-tarj-modal-title').textContent='✏️ EDITAR TARJETA';
+    $('tarj-nombre').value=t.nombre; $('tarj-disp').value=t.disponible;
+    $('tarj-limite').value=t.limite||''; $('tarj-cierre').value=t.cierre||'';
+    $('tarj-del-btn').style.display='block';
+  } else {
+    $('g-tarj-modal-title').textContent='💳 NUEVA TARJETA';
+    $('tarj-nombre').value=''; $('tarj-disp').value='';
+    $('tarj-limite').value=''; $('tarj-cierre').value='';
+    $('tarj-del-btn').style.display='none';
+  }
+  modal.classList.add('open');
+}
+function gCerrarTarjeta(){ $('g-tarj-modal').classList.remove('open'); }
+function gGuardarTarjeta(){
+  var nom=$('tarj-nombre').value.trim();
+  var disp=parseFloat($('tarj-disp').value)||0;
+  var lim=parseFloat($('tarj-limite').value)||0;
+  var cier=parseInt($('tarj-cierre').value)||0;
+  if(!nom){ mAviso('Ingresá un nombre'); return; }
+  if(gEditTarjId){
+    gState.tarjetas=gState.tarjetas.map(function(t){
+      return t.id==gEditTarjId?{id:t.id,nombre:nom,disponible:disp,limite:lim,cierre:cier}:t;
+    });
+  } else {
+    gState.tarjetas.push({id:Date.now(),nombre:nom,disponible:disp,limite:lim,cierre:cier});
+  }
+  gSave(); gCerrarTarjeta(); gRenderAll();
+}
+function gEliminarTarjeta(){
+  mConfirm('¿Eliminar esta tarjeta?', function(){
+    gState.tarjetas=gState.tarjetas.filter(function(t){return t.id!=gEditTarjId;});
+    gSave(); gCerrarTarjeta(); gRenderAll();
+  });
+}
+
+/* Modal operar (desde header) */
+function gAbrirModalOperar(){
+  var m=$('modal-operar'); if(!m) return;
+  m.style.display='flex';
+  var recAuto=(gState.operaciones||[]).filter(function(o){return o.tipo==='extraccion'&&o.costoExtra==='si'&&!o.reseteado;}).reduce(function(a,o){return a+(o.recargo||0);},0);
+  if($('modal-recargo-display')) $('modal-recargo-display').textContent=fmtG(recAuto+(gState.recargoManual||0));
+  var sel=$('mop-tarj');
+  sel.innerHTML='<option value="">-- Seleccionar --</option>';
+  (gState.tarjetas||[]).forEach(function(t){
+    sel.innerHTML+='<option value="'+t.id+'">'+t.nombre+' ('+fmtG(t.disponible)+')</option>';
+  });
+  var pSel=$('mop-plat');
+  pSel.innerHTML='';
+  (gState.config.plataformas||[]).forEach(function(p){
+    pSel.innerHTML+='<option value="'+p.id+'">'+p.nombre+' ('+p.porcentaje+'%)</option>';
+  });
+  $('mop-tipo').value='extraccion';
+  $('mop-monto').value='';
+  mopOnTipoChange(); mopOnCostoChange();
+}
+function gCerrarModalOperar(){ var m=$('modal-operar');if(m)m.style.display='none'; }
+function mopOnTipoChange(){
+  var tipo=$('mop-tipo').value;
+  $('mop-recargo-section').style.display=tipo==='extraccion'?'block':'none';
+  $('mop-efectivo-section').style.display='none';
+  $('mop-tarjeta-section').style.display=(tipo==='extraccion'||tipo==='pago')?'block':'none';
+}
+function mopOnCostoChange(){
+  $('mop-plat').style.display=$('mop-costoextra').value==='si'?'block':'none';
+}
+function mopConfirmar(){
+  $('op-tipo').value=$('mop-tipo').value;
+  $('op-monto').value=$('mop-monto').value;
+  $('op-etiqueta').value=$('mop-etiqueta').value;
+  $('op-costoextra').value=$('mop-costoextra').value;
+  $('op-tarj').value=$('mop-tarj').value;
+  var mopP=$('mop-plat'), opP=$('op-plat');
+  if(mopP&&opP) opP.value=mopP.value;
+  gOnTipoChange(); gOnCostoChange();
+  gConfirmarOp();
+  gCerrarModalOperar();
+}
+
+/* Backup */
+async function exportarTodo(){
+  var todo={ gestor:gState, vencim_serv:JSON.parse(localStorage.getItem('v40_services')||'[]'), vencim_hist:JSON.parse(localStorage.getItem('v40_history')||'[]') };
+  var json=JSON.stringify(todo,null,2);
+  var fecha=new Date().toISOString().slice(0,10);
+  var name='backup-gestor-'+fecha+'.json';
+  var b=new Blob([json],{type:'application/json'});
+  var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download=name;
+  document.body.appendChild(a); a.click(); document.body.removeChild(a);
+  showToast('✅ Backup descargado');
+}
+function importarTodo(){
+  var inp=document.createElement('input'); inp.type='file'; inp.accept='.json';
+  inp.style.cssText='position:fixed;top:-9999px;left:-9999px;';
+  document.body.appendChild(inp);
+  inp.addEventListener('change',function(){
+    var file=inp.files&&inp.files[0];
+    if(!file){document.body.removeChild(inp);return;}
+    var r=new FileReader();
+    r.onload=function(ev){
+      try{
+        var todo=JSON.parse(ev.target.result);
+        if(todo.gestor){
+          gState=todo.gestor;
+          if(!gState.config) gState.config={plataformas:[{id:1,nombre:'AstroPay',porcentaje:6}]};
+          if(!gState.tarjetas) gState.tarjetas=[];
+          if(!gState.operaciones) gState.operaciones=[];
+          if(gState.acum10===undefined) gState.acum10=0;
+          if(gState.ingresoFijo===undefined) gState.ingresoFijo=0;
+          gSave();
+          if(todo.vencim_serv) localStorage.setItem('v40_services',JSON.stringify(todo.vencim_serv));
+          if(todo.vencim_hist) localStorage.setItem('v40_history',JSON.stringify(todo.vencim_hist));
+          document.body.removeChild(inp);
+          mAviso('✅ Backup importado.',function(){location.reload();});
+        } else {
+          document.body.removeChild(inp);
+          mAviso('Archivo no reconocido.');
+        }
+      }catch(err){ document.body.removeChild(inp); mAviso('Error al leer el archivo.'); }
+    };
+    r.readAsText(file);
+  });
+  inp.click();
+}
+
+/* Auto-backup */
+var KEY_AB_G='gestionando_autobackup';
+function autoBackupG(){
+  try{
+    var snap={ gestor:JSON.parse(localStorage.getItem(STORE_G)||'null'), vencim_serv:JSON.parse(localStorage.getItem('v40_services')||'[]'), vencim_hist:JSON.parse(localStorage.getItem('v40_history')||'[]'), ts:new Date().toISOString() };
+    localStorage.setItem(KEY_AB_G,JSON.stringify(snap));
+  }catch(e){}
+}
+function salirYBackupG(){
+  try{
+    var ab=JSON.parse(localStorage.getItem(KEY_AB_G)||'null');
+    if(!ab){alert('Sin datos para guardar todavía.');return;}
+    var fecha=ab.ts?ab.ts.slice(0,10).replace(/-/g,''):new Date().toISOString().slice(0,10).replace(/-/g,'');
+    var json=JSON.stringify(ab,null,2);
+    var b=new Blob([json],{type:'application/json'});
+    var a=document.createElement('a'); a.href=URL.createObjectURL(b); a.download='gestionando_backup_'+fecha+'.json';
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    setTimeout(function(){window.close();},400);
+  }catch(e){alert('Error al generar backup.');}
+}
+
+/* PIN */
+var LOCK_PIN=localStorage.getItem('app_pin_v1')||'177';
+var pinBuffer='';
+function pinKey(d){ if(pinBuffer.length>=3)return; pinBuffer+=d; pinUpdateDots(); if(pinBuffer.length===3)setTimeout(pinCheck,120); }
+function pinDel(){ pinBuffer=pinBuffer.slice(0,-1); pinUpdateDots(); }
+function pinUpdateDots(){ for(var i=0;i<3;i++){var dot=$('dot-'+i);if(!dot)continue;dot.classList.toggle('filled',i<pinBuffer.length);dot.classList.remove('error');} }
+function pinCheck(){
+  if(pinBuffer===LOCK_PIN){
+    for(var i=0;i<3;i++){var d=$('dot-'+i);if(d){d.classList.add('filled');d.classList.remove('error');}}
+    var ls=$('lock-screen');
+    setTimeout(function(){ls.style.transition='opacity .4s';ls.style.opacity='0';setTimeout(function(){ls.style.display='none';},400);},200);
+  } else {
+    for(var i=0;i<3;i++){var d=$('dot-'+i);if(d){d.classList.add('error');d.classList.remove('filled');}}
+    var st=$('lock-status');if(st)st.textContent='PIN incorrecto';
+    if(navigator.vibrate)navigator.vibrate([80,40,80]);
+    setTimeout(function(){pinBuffer='';pinUpdateDots();var st=$('lock-status');if(st)st.textContent='';},1000);
+  }
+}
+function cfgCambiarPin(){
+  var actual=($('cfg-pin-actual').value||'').trim();
+  var nuevo=($('cfg-pin-nuevo').value||'').trim();
+  var rep=($('cfg-pin-rep').value||'').trim();
+  var msg=$('cfg-pin-msg');
+  function setMsg(txt,color){if(msg){msg.textContent=txt;msg.style.color=color;}}
+  if(actual!==LOCK_PIN){setMsg('PIN actual incorrecto','var(--danger)');return;}
+  if(nuevo.length!==3||!/^\d{3}$/.test(nuevo)){setMsg('El PIN nuevo debe ser de 3 dígitos','var(--warning)');return;}
+  if(nuevo!==rep){setMsg('Los PINs no coinciden','var(--warning)');return;}
+  LOCK_PIN=nuevo; localStorage.setItem('app_pin_v1',LOCK_PIN);
+  $('cfg-pin-actual').value='';$('cfg-pin-nuevo').value='';$('cfg-pin-rep').value='';
+  setMsg('✅ PIN actualizado','var(--accent)');
+  setTimeout(function(){if(msg)msg.textContent='';},3000);
+}
+
+/* ══════════════════════════════════════
+   VENCIMIENTOS
+══════════════════════════════════════ */
+var VLLAVES=['v40','v39','v38','v37','v36','v35','v34','v33','v32','v31','v30','v28','v27','v26','v25','v24','v22','v21','v20','v18'];
+var vServices=[], vHistory=[];
+var vPayTarget=null, vEditTargetId=null;
+
+function vLoad(){
+  VLLAVES.forEach(function(llave){
+    var sv=JSON.parse(localStorage.getItem(llave+'_services')||'[]');
+    var hv=JSON.parse(localStorage.getItem(llave+'_history')||'[]');
+    if(sv.length>vServices.length) vServices=sv;
+    if(hv.length>vHistory.length) vHistory=hv;
+  });
+}
+function vSave(){
+  localStorage.setItem('v40_services',JSON.stringify(vServices));
+  localStorage.setItem('v40_history',JSON.stringify(vHistory));
+  autoBackupG();
+}
+function vToday0(){ var d=new Date(); d.setHours(0,0,0,0); return d; }
+function vDaysUntil(ds){ return Math.round((new Date(ds+'T00:00:00')-vToday0())/86400000); }
+function vFmt(n){ return '$'+Number(n).toLocaleString('es-AR',{minimumFractionDigits:2}); }
+function vFmtDate(s){ var p=s.split('-'); return p[2]+'/'+p[1]+'/'+p[0]; }
+function vGetWaLink(val){
+  if(!val) return '';
+  if(val.startsWith('http')) return val;
+  var clean=val.replace(/[^0-9]/g,'');
+  if(clean.length===10) clean='549'+clean;
+  return 'https://wa.me/'+clean;
+}
+
+function vRenderWidgets(){
+  var near=vServices.filter(function(s){return vDaysUntil(s.date)<=7;}).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+  var total=near.reduce(function(a,s){return a+Number(s.amount);},0);
+  var totalStr=near.length?' · <span style="color:var(--accent);font-weight:700;">'+vFmt(total)+'</span>':'';
+  var titleEl=$('gestor-venc-title');
+  if(titleEl) titleEl.innerHTML='📅 PRÓX. 7 DÍAS'+totalStr;
+  var html;
+  if(!near.length){
+    html='<span class="venc-widget-empty">Sin vencimientos en los próximos 7 días ✓</span>';
+  } else {
+    html=near.map(function(s){
+      var d=vDaysUntil(s.date);
+      var cls=d<=3?'urgent':'warning';
+      var color=d<=3?'var(--red)':'var(--yellow)';
+      return '<div class="venc-mini-card '+cls+'" onclick="switchApp(\'vencim\')">'
+        +'<div><div class="venc-mini-name">'+s.name+'</div><div class="venc-mini-date">'+vFmtDate(s.date)+(s.via?' · '+s.via:'')+'</div></div>'
+        +'<div class="venc-mini-right"><div class="venc-mini-amount" style="color:'+color+'">'+vFmt(s.amount)+'</div><div class="venc-mini-days" style="color:'+color+'">'+(d<=0?'⚠ Vencido':'Faltan '+d+'d')+'</div></div>'
+        +'</div>';
+    }).join('');
+  }
+  var gw=$('gestor-venc-list'); if(gw) gw.innerHTML=html;
+}
+
+function vRender(){
+  var mn=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var n=new Date();
+  var tl=$('v-today-label');
+  if(tl) tl.textContent='📅 '+n.getDate()+' de '+mn[n.getMonth()]+' de '+n.getFullYear();
+  var mStr=n.toISOString().slice(0,7);
+  var total=vServices.reduce(function(a,s){return s.date.slice(0,7)<=mStr?a+Number(s.amount):a;},0);
+  var vs=$('v-summary');
+  if(vs) vs.innerHTML='<span class="v-sum-item">Activos: <b>'+vServices.length+'</b></span><span class="v-sum-item">Total mes: <b>'+vFmt(total)+'</b></span>';
+  var near=vServices.filter(function(s){return vDaysUntil(s.date)<=7;}).sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+  var grid=$('v-alerts-grid');
+  if(grid) grid.innerHTML=near.length?near.map(function(s){
+    var d=vDaysUntil(s.date), v=s.via||'';
+    var isCard=v.toLowerCase().includes('tarjeta')||v.toLowerCase().includes('visa')||v.toLowerCase().includes('master');
+    var wa=vGetWaLink(s.whatsapp);
+    var label=isCard?'('+v.replace('Tarjeta: ','')+') ':'';
+    var dateDisp=isCard?'<span class="v-date-box">'+label+vFmtDate(s.date)+'</span>':'<b>'+vFmtDate(s.date)+'</b>';
+    return '<div class="v-alert-card '+(d<=4?'urgent':'warning')+'" onclick="vOpenPayModal(\''+s.id+'\')">'
+      +'<div class="v-a-left"><div class="v-dot '+(d<=4?'red':'yellow')+'"></div>'
+      +'<div><div class="v-a-name">'+s.name+'</div>'
+      +'<div class="v-a-sub">'+dateDisp+(wa?' <a href="'+wa+'" target="_blank" class="v-whatsapp-btn" onclick="event.stopPropagation()">WA</a>':'')+'</div></div></div>'
+      +'<div class="v-a-right"><div class="v-a-amount">'+vFmt(s.amount)+'</div><div class="v-a-days">Faltan '+d+'d</div></div></div>';
+  }).join(''):'<div style="color:var(--muted);font-size:11px">Sin vencimientos próximos ✓</div>';
+  var search=($('v-s-search')||{value:''}).value.toLowerCase();
+  var filtered=vServices.filter(function(s){return s.name.toLowerCase().includes(search);});
+  var sorted=filtered.slice().sort(function(a,b){return new Date(a.date)-new Date(b.date);});
+  var tbody=$('v-tbody');
+  if(tbody) tbody.innerHTML=sorted.length?sorted.map(function(s){
+    var d=vDaysUntil(s.date), v=s.via||'';
+    var isCard=v.toLowerCase().includes('tarjeta')||v.toLowerCase().includes('visa')||v.toLowerCase().includes('master');
+    var wa=vGetWaLink(s.whatsapp);
+    var dColor=d<=0?'var(--red)':d<=4?'var(--red)':'var(--green)';
+    return '<div style="background:#141720;border:1px solid #262c3e;border-radius:10px;margin-bottom:6px;overflow:hidden;">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;padding:9px 12px;">'
+        +'<div style="flex:1;min-width:0;"><div style="font-size:13px;font-weight:700;">'+s.name+'</div>'
+        +'<div style="font-size:10px;color:var(--muted);margin-top:1px;">'+(isCard?'<span class="v-date-box" style="font-size:10px;padding:1px 5px;">'+vFmtDate(s.date)+'</span>':vFmtDate(s.date))+(v?' · '+v:'')+'</div></div>'
+        +'<div style="text-align:right;flex-shrink:0;margin-left:8px;"><div style="font-size:12px;font-weight:700;font-family:\'Courier New\';">'+vFmt(s.amount)+'</div>'
+        +'<div style="font-size:9px;font-weight:800;color:'+dColor+';">'+(d<=0?'VENCIDO':'FALTAN '+d+'D')+'</div></div>'
+      +'</div>'
+      +'<div style="display:flex;border-top:1px solid #1e2436;">'
+        +(wa?'<a href="'+wa+'" target="_blank" style="flex:1;text-align:center;padding:7px 4px;font-size:11px;font-weight:700;color:#25D366;text-decoration:none;border-right:1px solid #1e2436;">WA</a>':'')
+        +'<button onclick="vOpenPayModal(\''+s.id+'\')" style="flex:1;padding:7px 4px;background:none;border:none;border-right:1px solid #1e2436;color:#4f8ef7;font-size:11px;font-weight:700;cursor:pointer;">✓ Pagar</button>'
+        +'<button onclick="vOpenEditModal(\''+s.id+'\')" style="flex:1;padding:7px 4px;background:none;border:none;border-right:1px solid #1e2436;color:var(--yellow);font-size:11px;font-weight:700;cursor:pointer;">✏️ Editar</button>'
+        +'<button onclick="vDeleteService(\''+s.id+'\')" style="flex:1;padding:7px 4px;background:none;border:none;color:var(--red);font-size:11px;font-weight:700;cursor:pointer;">🗑 Borrar</button>'
+      +'</div></div>';
+  }).join(''):'<div style="color:var(--muted);font-size:12px;padding:10px;text-align:center;">Sin servicios activos.</div>';
+  vRenderHistory(); vRenderWidgets();
+}
+
+function vRenderHistory(){
+  var search=($('v-h-search')||{value:''}).value.toLowerCase();
+  var mF=($('v-h-month')||{value:''}).value;
+  var filtered=vHistory.filter(function(h){
+    var ms=h.name.toLowerCase().includes(search)||(h.via&&h.via.toLowerCase().includes(search));
+    var mm=!mF||h.paidAt.startsWith(mF);
+    return ms&&mm;
+  });
+  var mn=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
+  var list=$('v-hist-list'); if(!list) return;
+  var groups={};
+  filtered.forEach(function(h){var k=h.paidAt.slice(0,7);if(!groups[k])groups[k]=[];groups[k].push(h);});
+  var keys=Object.keys(groups).sort().reverse();
+  list.innerHTML=keys.map(function(k){
+    var items=groups[k], tot=items.reduce(function(a,h){return a+Number(h.amount);},0);
+    var parts=k.split('-');
+    return '<div class="v-hist-group">'
+      +'<div class="v-hist-ghdr" onclick="vToggleGrp(\''+k+'\')"><b>'+mn[parseInt(parts[1])-1]+' '+parts[0]+'</b><b>'+vFmt(tot)+'</b></div>'
+      +'<div class="v-hist-items open" id="v-grp-'+k+'">'
+      +items.map(function(h){return '<div class="v-hist-item"><div>'+h.name+' ('+vFmtDate(h.paidAt)+')<span style="font-size:10px;color:var(--muted);margin-left:5px;">via '+h.via+'</span></div><div>'+vFmt(h.amount)+'</div></div>';}).join('')
+      +'</div></div>';
+  }).join('')||'<div style="color:var(--muted);font-size:11px;padding:10px">Sin registros.</div>';
+  var mS=$('v-h-month'); if(!mS) return;
+  var months=new Set(); var nowM=new Date();
+  months.add(nowM.getFullYear()+'-'+String(nowM.getMonth()+1).padStart(2,'0'));
+  vHistory.forEach(function(h){if(h.paidAt)months.add(h.paidAt.slice(0,7));});
+  var pm=mS.value;
+  mS.innerHTML='<option value="">Todos los meses</option>'+[...months].sort().reverse().map(function(m){
+    var p=m.split('-');return '<option value="'+m+'">'+mn[parseInt(p[1])-1]+' '+p[0]+'</option>';
+  }).join('');
+  mS.value=pm;
+}
+
+function vToggleGrp(k){ var el=$('v-grp-'+k);if(el)el.classList.toggle('open'); }
+function vToggleTable(){ var el=$('v-tbody');if(el)el.style.display=el.style.display==='none'?'':'none'; }
+function vToggleCardInputs(){
+  var v=$('v-f-via');if(!v)return;
+  $('v-card-inputs').style.display=v.value==='Tarjeta'?'block':'none';
+}
+function vApplyCardClosing(){
+  var day=parseInt($('v-f-closing-day').value);
+  if(!day||day<1||day>31) return;
+  var now=new Date(), y=now.getFullYear(), m=now.getMonth();
+  if(now.getDate()>=day) m++;
+  var target=new Date(y,m,day);
+  $('v-f-date').value=target.getFullYear()+'-'+String(target.getMonth()+1).padStart(2,'0')+'-'+String(target.getDate()).padStart(2,'0');
+}
+function vOpenAddModal(){
+  vEditTargetId=null;
+  $('v-add-modal-title').textContent='Nuevo Servicio';
+  $('v-f-name').value='';$('v-f-date').value='';$('v-f-amount').value='';
+  $('v-f-via').value='Efectivo / Calle';$('v-f-whatsapp').value='';
+  $('v-f-card-name').value='';$('v-f-closing-day').value='';
+  vToggleCardInputs();
+  $('v-modal-add').classList.add('open');
+}
+function vOpenEditModal(id){
+  vEditTargetId=id.toString();
+  var s=vServices.find(function(x){return x.id.toString()===vEditTargetId;});
+  if(!s)return;
+  $('v-add-modal-title').textContent='Editar Servicio';
+  $('v-f-name').value=s.name;$('v-f-date').value=s.date;$('v-f-amount').value=s.amount;
+  $('v-f-whatsapp').value=s.whatsapp||'';
+  if(s.via&&(s.via.startsWith('Tarjeta: ')||s.via.toLowerCase().includes('tarjeta'))){
+    $('v-f-via').value='Tarjeta';vToggleCardInputs();
+    $('v-f-card-name').value=s.via.replace('Tarjeta: ','');
+  } else { $('v-f-via').value=s.via||'Efectivo / Calle';vToggleCardInputs(); }
+  $('v-modal-add').classList.add('open');
+}
+function vSaveService(){
+  var n=$('v-f-name').value.trim(),d=$('v-f-date').value,a=parseFloat($('v-f-amount').value);
+  var wa=$('v-f-whatsapp').value.trim(), v=$('v-f-via').value;
+  if(v==='Tarjeta') v='Tarjeta: '+($('v-f-card-name').value.trim()||'Desconocida');
+  if(!n||!d||isNaN(a))return;
+  if(vEditTargetId){
+    var idx=vServices.findIndex(function(s){return s.id.toString()===vEditTargetId;});
+    if(idx!==-1) vServices[idx]=Object.assign({},vServices[idx],{name:n,date:d,amount:a,via:v,whatsapp:wa});
+  } else { vServices.push({id:Date.now().toString(),name:n,date:d,amount:a,via:v,whatsapp:wa}); }
+  vSave();vCloseModal('v-modal-add');vRender();
+}
+function vOpenPayModal(id){
+  vPayTarget=vServices.find(function(s){return s.id.toString()===id.toString();});
+  if(!vPayTarget)return;
+  $('v-pm-name').textContent=vPayTarget.name;
+  $('v-pm-amount').textContent=vFmt(vPayTarget.amount);
+  $('v-pm-via').value=vPayTarget.via;
+  $('v-modal-pay').classList.add('open');
+}
+function vConfirmPay(){
+  var v=$('v-pm-via').value.trim()||'S/D';
+  var dt=new Date();
+  var l=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+  vHistory.unshift(Object.assign({},vPayTarget,{via:v,paidAt:l}));
+  vServices=vServices.filter(function(s){return s.id.toString()!==vPayTarget.id.toString();});
+  vSave();vCloseModal('v-modal-pay');vRender();
+  showToast('✅ Pago registrado: '+vPayTarget.name);
+}
+function vCloseModal(id){ $(id).classList.remove('open'); }
+function vDeleteService(id){
+  mConfirm('¿Borrar este servicio?', function(){
+    vServices=vServices.filter(function(s){return s.id.toString()!==id.toString();});
+    vSave();vRender();
+  });
+}
+
+/* INIT */
+gLoad();
+vLoad();
+gRenderAll();
+gOnTipoChange();
+gOnCostoChange();
+vRenderWidgets();
+vExpandWidgets();
+</script>
+</body>
+</html>
