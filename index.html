@@ -283,12 +283,28 @@ button,input,select,textarea{font-family:'Courier New',monospace;}
         <span class="g-stat-val" id="g-recargo-monto" style="color:var(--warning)">$0</span>
       </div>
       <div class="g-stat-box">
-        <span class="g-stat-label" style="color:var(--red)">10% ACUM.</span>
-        <span class="g-stat-val" id="g-acum10-val" style="color:var(--red)">$0</span>
+        <span class="g-stat-label" style="color:#4f8ef7">10% ACUM.</span>
+        <span class="g-stat-val" id="g-acum10-val" style="color:#4f8ef7">$0</span>
       </div>
-      <div class="g-stat-box" style="cursor:pointer;" onclick="gMostrarDetalleIngreso()">
-        <span class="g-stat-label" style="color:var(--green)">INGRESO</span>
+      <div class="g-stat-box" style="cursor:pointer;" onclick="gAbrirEditIngreso()" id="box-ingreso">
+        <span class="g-stat-label" style="color:var(--green)">INGRESO ✏️</span>
         <span class="g-stat-val" id="g-ingfijo-val" style="color:var(--green)">$0</span>
+      </div>
+    </div>
+    <!-- Panel edicion ingreso inline (fuera de modal) -->
+    <div id="panel-edit-ingreso" style="display:none;background:#1a2236;border:2px solid var(--accent);border-radius:12px;padding:14px;margin-top:8px;">
+      <div style="font-size:11px;font-weight:700;color:var(--accent);margin-bottom:8px;">✏️ AJUSTE MANUAL DE INGRESO</div>
+      <input id="inp-ingmanual" type="number" inputmode="numeric" placeholder="Ingresá el monto a sumar"
+        style="width:100%;background:#0d1018;border:2px solid var(--accent);padding:12px;color:#fff;border-radius:8px;font-size:16px;font-weight:700;margin-bottom:10px;"/>
+      <div style="display:flex;gap:8px;">
+        <div id="btn-aplicar-ing"
+          style="flex:2;padding:13px;border-radius:10px;background:var(--accent);color:#000;font-size:13px;font-weight:900;text-align:center;cursor:pointer;">
+          ✅ APLICAR
+        </div>
+        <div id="btn-cerrar-ing"
+          style="flex:1;padding:13px;border-radius:10px;background:#2d3348;color:#fff;font-size:13px;font-weight:700;text-align:center;cursor:pointer;">
+          ✕
+        </div>
       </div>
     </div>
   </div>
@@ -318,6 +334,7 @@ button,input,select,textarea{font-family:'Courier New',monospace;}
           <option value="pago">Pago</option>
           <option value="ingreso_varios">Ingreso Varios (−10%)</option>
           <option value="ingreso_fijo">Ingreso Fijo (sin descuento)</option>
+          <option value="interes">Interés Ganado (resta recargo + objetivo)</option>
           <option value="gasto">Gasto (resta del 10% acum.)</option>
         </select>
 
@@ -350,13 +367,30 @@ button,input,select,textarea{font-family:'Courier New',monospace;}
             <span id="prev-bruto" style="font-size:12px;font-weight:700;">—</span>
           </div>
           <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
-            <span style="font-size:12px;color:var(--red);">10% (acumulado)</span>
-            <span id="prev-10" style="font-size:12px;font-weight:700;color:var(--red);">—</span>
+            <span style="font-size:12px;color:#4f8ef7;">10% (acumulado)</span>
+            <span id="prev-10" style="font-size:12px;font-weight:700;color:#4f8ef7;">—</span>
           </div>
           <div style="display:flex;justify-content:space-between;border-top:1px solid rgba(79,255,176,0.2);padding-top:6px;margin-top:4px;">
             <span style="font-size:13px;color:var(--accent);font-weight:700;">90% (resta Objetivo)</span>
             <span id="prev-90" style="font-size:14px;font-weight:900;color:var(--accent);">—</span>
           </div>
+        </div>
+
+        <!-- Preview interés ganado -->
+        <div id="op-interes-preview" style="display:none;background:rgba(79,142,247,0.06);border:1px solid rgba(79,142,247,0.3);border-radius:10px;padding:12px;margin-bottom:10px;">
+          <div style="font-size:10px;color:#4f8ef7;font-weight:700;letter-spacing:1px;margin-bottom:8px;">INTERÉS GANADO</div>
+          <div style="display:flex;justify-content:space-between;margin-bottom:5px;">
+            <span style="font-size:12px;color:var(--muted);">Resta del Recargo</span>
+            <span id="prev-int-rec" style="font-size:12px;font-weight:700;color:#4f8ef7;">—</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;border-top:1px solid rgba(79,142,247,0.2);padding-top:6px;margin-top:4px;">
+            <span style="font-size:13px;color:var(--green);font-weight:700;">Resta Objetivo + suma Ingreso</span>
+            <span id="prev-int-val" style="font-size:14px;font-weight:900;color:var(--green);">—</span>
+          </div>
+        </div>
+        <div id="op-interes-concepto-section" style="display:none;">
+          <label class="g-label">CONCEPTO</label>
+          <input class="g-input" id="op-interes-concepto" type="text" placeholder="Ej: Interés AstroPay, Rendimiento..."/>
         </div>
 
         <!-- Preview ingreso fijo -->
@@ -429,24 +463,26 @@ button,input,select,textarea{font-family:'Courier New',monospace;}
   <input class="g-input" id="cfg-objetivo" type="number" inputmode="numeric"/>
   <label class="g-label">RECARGO TOTAL MENSUAL ($) — ajuste manual</label>
   <input class="g-input" id="cfg-recargo-manual" type="number" inputmode="numeric" placeholder="0"/>
-  <button class="g-btn g-btn-sec" style="margin-bottom:14px;" onclick="gGuardarObjetivo()">GUARDAR OBJETIVO</button>
+  <div ontouchend="gGuardarObjetivo()" onclick="gGuardarObjetivo()" style="margin-bottom:14px;padding:14px;border-radius:10px;background:#2d3348;color:#fff;font-size:13px;font-weight:700;text-align:center;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;">GUARDAR OBJETIVO</div>
 
   <!-- EDITAR INGRESOS MANUAL -->
   <div style="background:rgba(79,255,176,0.06);border:1px solid rgba(79,255,176,0.3);border-radius:12px;padding:14px;margin-bottom:4px;">
-    <div style="font-size:10px;font-weight:700;color:var(--accent);letter-spacing:1px;margin-bottom:10px;">✏️ EDITAR INGRESOS MANUALMENTE</div>
+    <div style="font-size:10px;font-weight:700;color:var(--accent);letter-spacing:1px;margin-bottom:6px;">✏️ EDITAR INGRESOS MANUALMENTE</div>
     <label class="g-label" style="margin-top:0;">10% ACUMULADO ($)</label>
     <input class="g-input" id="cfg-acum10" type="number" inputmode="numeric" placeholder="0"/>
-    <label class="g-label">INGRESO FIJO ACUMULADO ($)</label>
-    <input class="g-input" id="cfg-ingfijo" type="number" inputmode="numeric" placeholder="0"/>
+    <label class="g-label">INGRESO FIJO/INTERÉS — AJUSTE MANUAL ($)</label>
+    <div style="font-size:10px;color:var(--muted);margin-bottom:4px;" id="cfg-ingmanual-auto"></div>
+    <div style="font-size:10px;color:var(--accent);margin-bottom:6px;">Escribí el valor que querés sumar al ingreso automático.</div>
+    <input class="g-input" id="cfg-ingmanual" type="number" inputmode="numeric" placeholder="0"/>
   </div>
-  <button class="g-btn g-btn-main" style="margin-bottom:12px;" onclick="gGuardarIngresos()">✅ GUARDAR INGRESOS</button>
+  <div ontouchstart="gGuardarIngresos()" onclick="gGuardarIngresos()" style="margin-bottom:12px;padding:16px;border-radius:10px;background:var(--accent);color:#000;font-size:14px;font-weight:900;text-align:center;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0.1);user-select:none;letter-spacing:1px;">✅ GUARDAR</div>
 
   <!-- RESET DE MES -->
   <div style="background:rgba(244,63,94,0.06);border:1px solid rgba(244,63,94,0.35);border-radius:12px;padding:14px;margin-bottom:4px;">
     <div style="font-size:10px;font-weight:700;color:var(--red);letter-spacing:1px;margin-bottom:6px;">🔄 LIMPIEZA DE MES</div>
     <div style="font-size:11px;color:var(--muted);margin-bottom:6px;">Resetea: 10% acumulado, Ingreso Fijo, e Ingresos del historial. No toca Objetivo ni Tarjetas.</div>
   </div>
-  <button class="g-btn g-btn-danger" style="margin-bottom:12px;" onclick="gResetMes()">🗑 RESETEAR MES</button>
+  <div ontouchend="gResetMes()" onclick="gResetMes()" style="margin-bottom:12px;padding:14px;border-radius:10px;background:rgba(255,77,109,0.12);border:1px solid var(--danger);color:var(--danger);font-size:13px;font-weight:700;text-align:center;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;">🗑 RESETEAR MES</div>
 
   <label class="g-label">PLATAFORMAS Y RECARGOS</label>
   <div id="cfg-plats-list" style="max-height:200px;overflow-y:auto;border:1px solid var(--border);padding:8px;border-radius:8px;margin-bottom:8px;"></div>
@@ -470,7 +506,7 @@ button,input,select,textarea{font-family:'Courier New',monospace;}
     <div id="cfg-pin-msg" style="font-size:12px;font-weight:700;text-align:center;margin-top:8px;min-height:16px;"></div>
   </div>
 
-  <button class="g-btn g-btn-sec" onclick="gCerrarCfg()" style="margin-top:20px">CERRAR</button>
+  <div ontouchend="gCerrarCfg()" onclick="gCerrarCfg()" style="margin-top:20px;padding:14px;border-radius:10px;background:#2d3348;color:#fff;font-size:13px;font-weight:700;text-align:center;cursor:pointer;-webkit-tap-highlight-color:rgba(0,0,0,0);user-select:none;">CERRAR</div>
 </div>
 
 <!-- TARJETA MODAL -->
@@ -509,6 +545,7 @@ button,input,select,textarea{font-family:'Courier New',monospace;}
       <option value="pago">Pago</option>
       <option value="ingreso_varios">Ingreso Varios (−10%)</option>
       <option value="ingreso_fijo">Ingreso Fijo (sin descuento)</option>
+      <option value="interes">Interés Ganado (resta recargo + objetivo)</option>
       <option value="gasto">Gasto (resta del 10% acum.)</option>
     </select>
     <div id="mop-efectivo-section" style="display:none">
@@ -709,6 +746,7 @@ function gLoad(){
       if(!gState.operaciones) gState.operaciones=[];
       if(gState.acum10===undefined) gState.acum10=0;
       if(gState.ingresoFijo===undefined) gState.ingresoFijo=0;
+      if(gState.ingresoManual===undefined) gState.ingresoManual=0;
     }
   }catch(e){}
 }
@@ -783,24 +821,29 @@ function gRenderHeader(){
   $('g-disp-val').textContent=fmtG(disp);
   var recAuto=(gState.operaciones||[])
     .filter(function(o){return o.tipo==='extraccion'&&o.costoExtra==='si'&&!o.reseteado;})
-    .reduce(function(a,o){return a+(o.recargo||0);},0);
+    .reduce(function(a,o){return a+Number(o.recargo||0);},0);
   var recManual=gState.recargoManual||0;
   if($('g-recargo-monto')) $('g-recargo-monto').textContent=fmtG(recAuto+recManual);
   if($('g-acum10-val')) $('g-acum10-val').textContent=fmtG(gState.acum10||0);
 
-  // Box INGRESO: muestra ingresoFijo directo desde gState (cubre edición manual y via operaciones)
-  var ingFijo=gState.ingresoFijo||0;
-  if($('g-ingfijo-val')) $('g-ingfijo-val').textContent=fmtG(ingFijo);
+  // Box INGRESO
+  var ingManual=Number(gState.ingresoManual)||0;
+  var totalIngresado;
+  if(gState._ingresoPisado && ingManual>0){
+    totalIngresado=ingManual;
+  } else {
+    var totalVarios=(gState.operaciones||[])
+      .filter(function(o){return o.tipo==='ingreso_varios';})
+      .reduce(function(a,o){return a+Number(o.monto||0);},0);
+    var totalExtrac=(gState.operaciones||[])
+      .filter(function(o){return o.tipo==='extraccion';})
+      .reduce(function(a,o){return a+Number(o.monto||0);},0);
+    totalIngresado=ingManual+totalVarios+totalExtrac;
+  }
+  if($('g-ingfijo-val')) $('g-ingfijo-val').textContent=fmtG(totalIngresado);
+  var hdrIng=$('g-total-ingresado-header');
+  if(hdrIng) hdrIng.textContent=totalIngresado>0?('▸ '+fmtG(totalIngresado)):'';
 
-  // Total al lado de la fecha: ingresoFijo + bruto de varios
-  var totalVarios=(gState.operaciones||[])
-    .filter(function(o){return o.tipo==='ingreso_varios';})
-    .reduce(function(a,o){return a+(o.monto||0);},0);
-  var totalIngresado=ingFijo+totalVarios;
-  if($('g-total-ingresado-header') && totalIngresado>0)
-    $('g-total-ingresado-header').textContent='· '+fmtG(totalIngresado)+' ingresado';
-  else if($('g-total-ingresado-header'))
-    $('g-total-ingresado-header').textContent='';
 }
 
 function gRenderOperar(){
@@ -836,6 +879,8 @@ function gOnTipoChange(){
   $('op-tarjeta-section').style.display=(tipo==='extraccion'||tipo==='pago')?'block':'none';
   $('op-ingreso-varios-preview').style.display=tipo==='ingreso_varios'?'block':'none';
   $('op-ingreso-fijo-preview').style.display=tipo==='ingreso_fijo'?'block':'none';
+  $('op-interes-preview').style.display=tipo==='interes'?'block':'none';
+  $('op-interes-concepto-section').style.display=tipo==='interes'?'block':'none';
   $('op-gasto-preview').style.display=tipo==='gasto'?'block':'none';
   $('op-gasto-concepto-section').style.display=tipo==='gasto'?'block':'none';
   gPreviewIngreso();
@@ -856,6 +901,12 @@ function gPreviewIngreso(){
   }
   if(tipo==='ingreso_fijo' && monto>0){
     if($('prev-fijo')) $('prev-fijo').textContent=fmtG(monto);
+  }
+  if(tipo==='interes'){
+    var recActual=(gState.operaciones||[]).filter(function(o){return o.tipo==='extraccion'&&o.costoExtra==='si'&&!o.reseteado;}).reduce(function(a,o){return a+Number(o.recargo||0);},0)+(gState.recargoManual||0);
+    if($('prev-int-rec')) $('prev-int-rec').textContent=fmtG(recActual);
+    if($('prev-int-val') && monto>0) $('prev-int-val').textContent=fmtG(monto);
+    else if($('prev-int-val')) $('prev-int-val').textContent='—';
   }
   if(tipo==='gasto'){
     var disp=gState.acum10||0;
@@ -890,8 +941,15 @@ function gConfirmarOp(){
   } else if(tipo==='pago'){
     var idx2=nT.findIndex(function(t){return t.id==$('op-tarj').value;});
     if(idx2!==-1){ tarjNombre=nT[idx2].nombre; nT[idx2].disponible+=monto; }
+  } else if(tipo==='interes'){
+    // Resta del recargo acumulado, resta del objetivo y suma al ingreso
+    var recActual=(gState.operaciones||[]).filter(function(o){return o.tipo==='extraccion'&&o.costoExtra==='si'&&!o.reseteado;}).reduce(function(a,o){return a+Number(o.recargo||0);},0)+(gState.recargoManual||0);
+    if(monto>recActual){ mAviso('⚠️ El interés ('+fmtG(monto)+') supera el recargo disponible ('+fmtG(recActual)+').\nIgual se registra.'); }
+    gState.recargoManual=Math.max(0,(gState.recargoManual||0)-monto);
+    nO-=monto;
+    gState.ingresoFijo=(gState.ingresoFijo||0)+monto;
   } else if(tipo==='ingreso_varios'){
-    // El 90% resta del objetivo (es lo que "sale"), el 10% va al acumulado
+    // El 90% resta del objetivo, el 10% va al acumulado
     var n90=monto*0.9, n10=monto*0.1;
     nO-=n90;
     gState.acum10=(gState.acum10||0)+n10;
@@ -902,9 +960,7 @@ function gConfirmarOp(){
     gState.ingresoFijo=(gState.ingresoFijo||0)+monto;
   } else if(tipo==='gasto'){
     // Resta del 10% acumulado
-    if(monto>(gState.acum10||0)){
-      mAviso('⚠️ El gasto ('+fmtG(monto)+') supera el 10% disponible ('+fmtG(gState.acum10||0)+').\nIgual se registra pero el acum. quedará en negativo.');
-    }
+    if(monto>(gState.acum10||0)){ mAviso('⚠️ El gasto ('+fmtG(monto)+') supera el 10% disponible ('+fmtG(gState.acum10||0)+').\nIgual se registra.'); }
     gState.acum10=(gState.acum10||0)-monto;
   }
 
@@ -912,7 +968,7 @@ function gConfirmarOp(){
   gState.objetivo=nO;
   gState.operaciones.unshift({
     id:Date.now(), tipo:tipo,
-    etiqueta:tipo==='gasto'?($('op-gasto-concepto').value||'Gasto'):($('op-etiqueta').value||tipo),
+    etiqueta:tipo==='gasto'?($('op-gasto-concepto').value||'Gasto'):tipo==='interes'?($('op-interes-concepto').value||'Interés Ganado'):($('op-etiqueta').value||tipo),
     costoExtra:$('op-costoextra').value,
     recargo:rec,
     totalMonto:mFO, totalTarjeta:mFT,
@@ -923,12 +979,13 @@ function gConfirmarOp(){
   gSave();
   $('op-monto').value='';
   if($('op-gasto-concepto')) $('op-gasto-concepto').value='';
+  if($('op-interes-concepto')) $('op-interes-concepto').value='';
   gPreviewIngreso();
   gRenderAll();
   var opBody=$('op-body'), opChev=$('op-chevron');
   if(opBody) opBody.style.display='none';
   if(opChev){ opChev.textContent='＋'; opChev.style.color='var(--accent)'; }
-  var msgs={extraccion:'✅ Extracción guardada',pago:'✅ Pago registrado',ingreso_varios:'✅ Ingreso Varios: 90% restado del Objetivo · 10% acumulado',ingreso_fijo:'✅ Ingreso Fijo sumado al Objetivo',gasto:'✅ Gasto registrado · restado del 10% acumulado'};
+  var msgs={extraccion:'✅ Extracción guardada',pago:'✅ Pago registrado',ingreso_varios:'✅ Ingreso Varios: 90% restado del Objetivo · 10% acumulado',ingreso_fijo:'✅ Ingreso Fijo: restado del Objetivo',interes:'✅ Interés Ganado: restado del Recargo y del Objetivo',gasto:'✅ Gasto registrado · restado del 10% acumulado'};
   mAviso(msgs[tipo]||'✅ Operación guardada');
 }
 
@@ -957,7 +1014,7 @@ function gRenderTarjetas(){
         return f>=ultCierre&&f<=hoy;
       });
       var totalExtrac=ops.filter(function(o){return o.tipo==='extraccion';}).reduce(function(a,o){return a+(o.totalTarjeta||o.monto||0);},0);
-      var totalPagos=ops.filter(function(o){return o.tipo==='pago';}).reduce(function(a,o){return a+(o.monto||0);},0);
+      var totalPagos=ops.filter(function(o){return o.tipo==='pago';}).reduce(function(a,o){return a+Number(o.monto||0);},0);
       var consumo=totalExtrac-totalPagos;
       var consumoColor=consumo>0?'var(--danger)':'var(--green)';
       var lineas=ops.length?ops.map(function(o){
@@ -1058,15 +1115,26 @@ function gBorrarOp(id){
   mConfirm('¿Eliminar del historial?', function(){
     var op=(gState.operaciones||[]).find(function(x){return x.id===id;});
     if(op){
-      if(op.tipo==='ingreso_varios'){
+      if(op.tipo==='extraccion'){
+        // devolver tarjeta y objetivo
+        var ti=gState.tarjetas.findIndex(function(t){return t.nombre===op.nombreTarj;});
+        if(ti!==-1) gState.tarjetas[ti].disponible+=(op.totalTarjeta||op.monto||0);
+        gState.objetivo=(gState.objetivo||0)+(op.monto||0);
+      } else if(op.tipo==='pago'){
+        var ti2=gState.tarjetas.findIndex(function(t){return t.nombre===op.nombreTarj;});
+        if(ti2!==-1) gState.tarjetas[ti2].disponible-=(op.monto||0);
+      } else if(op.tipo==='interes'){
+        gState.recargoManual=(gState.recargoManual||0)+(op.monto||0);
+        gState.objetivo=(gState.objetivo||0)+(op.monto||0);
+        gState.ingresoFijo=Math.max(0,(gState.ingresoFijo||0)-(op.monto||0));
+      } else if(op.tipo==='ingreso_varios'){
         var n10=(op.monto||0)*0.1;
         gState.acum10=Math.max(0,(gState.acum10||0)-n10);
         gState.objetivo=(gState.objetivo||0)+((op.monto||0)*0.9);
       } else if(op.tipo==='ingreso_fijo'){
         gState.ingresoFijo=Math.max(0,(gState.ingresoFijo||0)-(op.monto||0));
-        gState.objetivo=(gState.objetivo||0)+(op.monto||0); // devolver al objetivo
+        gState.objetivo=(gState.objetivo||0)+(op.monto||0);
       } else if(op.tipo==='gasto'){
-        // revertir: devolver al acum10
         gState.acum10=(gState.acum10||0)+(op.monto||0);
       }
     }
@@ -1078,7 +1146,7 @@ function gBorrarOp(id){
 function gRenderHistorial(){
   var recAuto=(gState.operaciones||[])
     .filter(function(o){return o.tipo==='extraccion'&&o.costoExtra==='si'&&!o.reseteado;})
-    .reduce(function(a,o){return a+(o.recargo||0);},0);
+    .reduce(function(a,o){return a+Number(o.recargo||0);},0);
   var recManual=gState.recargoManual||0;
   if($('g-recargo-monto')) $('g-recargo-monto').textContent=fmtG(recAuto+recManual);
 
@@ -1095,26 +1163,28 @@ function gRenderHistorial(){
     return;
   }
   var MAX=50, shown=ops.slice(0,MAX);
-  var TIPO_COLORS={extraccion:'var(--danger)',pago:'var(--green)',ingreso_varios:'var(--accent)',ingreso_fijo:'var(--green)',gasto:'var(--red)'};
-  var TIPO_ICONS={extraccion:'🔻 EXTRACCIÓN',pago:'💳 PAGO',ingreso_varios:'📥 VARIOS',ingreso_fijo:'💰 FIJO',gasto:'💸 GASTO'};
+  var TIPO_COLORS={extraccion:'var(--danger)',pago:'var(--green)',ingreso_varios:'var(--accent)',ingreso_fijo:'var(--green)',interes:'#4f8ef7',gasto:'var(--red)'};
+  var TIPO_ICONS={extraccion:'🔻 EXTRACCIÓN',pago:'💳 PAGO',ingreso_varios:'📥 VARIOS',ingreso_fijo:'💰 FIJO',interes:'📈 INTERÉS',gasto:'💸 GASTO'};
   var html=shown.map(function(o){
     var label, monto, signo='+';
     if(o.tipo==='extraccion'){label=o.nombreTarj||'';monto=o.totalTarjeta;signo='−';}
     else if(o.tipo==='pago'){label=o.nombreTarj||'';monto=o.monto;signo='+';}
     else if(o.tipo==='ingreso_varios'){label='Ingreso Varios';monto=o.monto;signo='+';}
     else if(o.tipo==='ingreso_fijo'){label='Ingreso Fijo';monto=o.monto;signo='+';}
+    else if(o.tipo==='interes'){label=o.etiqueta||'Interés Ganado';monto=o.monto;signo='+';}
     else if(o.tipo==='gasto'){label=o.etiqueta||'Gasto';monto=o.monto;signo='−';}
-    else{label=o.etiqueta||o.tipo;monto=o.monto||o.totalMonto;signo='+';};
-    var opac=o.reseteado?'opacity:.5;':'';
-    var color=TIPO_COLORS[o.tipo]||'var(--text)';
-    var tipoBadge=TIPO_ICONS[o.tipo]||o.tipo.toUpperCase();
-    var extras='';
-    if(o.tipo==='ingreso_varios') extras='<div class="mov-det-row"><span style="color:var(--red)">10% acumulado:</span><span style="color:var(--red)">'+fmtG((o.monto||0)*0.1)+'</span></div><div class="mov-det-row"><span style="color:var(--accent)">90% restado obj.:</span><span style="color:var(--accent)">'+fmtG((o.monto||0)*0.9)+'</span></div>';
-    if(o.tipo==='gasto') extras='<div class="mov-det-row"><span style="color:var(--muted)">Concepto:</span><span>'+( o.etiqueta||'—')+'</span></div><div class="mov-det-row"><span style="color:var(--red)">Restado del 10%:</span><span style="color:var(--red)">−'+fmtG(o.monto||0)+'</span></div>';
-    if(o.recargo&&o.recargo>0) extras+='<div class="mov-det-row"><span style="color:var(--warning)">Recargo:</span><span style="color:var(--warning)">+'+fmtG(o.recargo)+'</span></div>';
+    else{label=o.etiqueta||o.tipo;monto=o.monto||o.totalMonto;signo='+';}
+    var opac=o.reseteado?'opacity:.5;':''
+    var color=TIPO_COLORS[o.tipo]||'var(--text)'
+    var tipoBadge=TIPO_ICONS[o.tipo]||o.tipo.toUpperCase()
+    var extras=''
+    if(o.tipo==='ingreso_varios') extras='<div class="mov-det-row"><span style="color:#4f8ef7">10% acumulado:</span><span style="color:#4f8ef7">'+fmtG((o.monto||0)*0.1)+'</span></div><div class="mov-det-row"><span style="color:var(--accent)">90% restado obj.:</span><span style="color:var(--accent)">'+fmtG((o.monto||0)*0.9)+'</span></div>'
+    if(o.tipo==='interes') extras='<div class="mov-det-row"><span style="color:#4f8ef7">Resta Recargo:</span><span style="color:#4f8ef7">−'+fmtG(o.monto||0)+'</span></div><div class="mov-det-row"><span style="color:var(--green)">Resta Obj. + suma Ing.:</span><span style="color:var(--green)">'+fmtG(o.monto||0)+'</span></div>'
+    if(o.tipo==='gasto') extras='<div class="mov-det-row"><span style="color:var(--muted)">Concepto:</span><span>'+(o.etiqueta||'—')+'</span></div><div class="mov-det-row"><span style="color:var(--red)">Restado del 10%:</span><span style="color:var(--red)">−'+fmtG(o.monto||0)+'</span></div>'
+    if(o.recargo&&o.recargo>0) extras+='<div class="mov-det-row"><span style="color:var(--warning)">Recargo:</span><span style="color:var(--warning)">+'+fmtG(o.recargo)+'</span></div>'
     // Botón editar solo para ingresos
-    var editBtn='';
-    if(o.tipo==='ingreso_varios'||o.tipo==='ingreso_fijo'||o.tipo==='gasto'){
+    var editBtn=''
+    if(o.tipo==='ingreso_varios'||o.tipo==='ingreso_fijo'||o.tipo==='gasto'||o.tipo==='interes'){
       editBtn='<button style="margin-top:4px;width:100%;padding:9px;background:rgba(79,255,176,0.08);border:1px solid rgba(79,255,176,0.3);color:var(--accent);border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;" onclick="gEditarIngreso('+o.id+')">✏️ EDITAR MONTO</button>';
     }
     return '<div class="mov-accordion" style="'+opac+'" id="mova-'+o.id+'">'
@@ -1146,7 +1216,12 @@ function gAbrirCfg(){
   $('cfg-objetivo').value=gState.objetivo||0;
   $('cfg-recargo-manual').value=gState.recargoManual||0;
   $('cfg-acum10').value=gState.acum10||0;
-  $('cfg-ingfijo').value=gState.ingresoFijo||0;
+  // Mostrar el total actual de ingreso en el campo para edición directa
+  var totalVarios=(gState.operaciones||[]).filter(function(o){return o.tipo==='ingreso_varios';}).reduce(function(a,o){return a+Number(o.monto||0);},0);
+  var totalExtrac=(gState.operaciones||[]).filter(function(o){return o.tipo==='extraccion';}).reduce(function(a,o){return a+Number(o.monto||0);},0);
+  var autoCalc=totalVarios+totalExtrac;
+  $('cfg-ingmanual').value=Number(gState.ingresoManual)||0;
+  $('cfg-ingmanual-auto').textContent='Auto (extrac.+varios): '+fmtG(autoCalc);
   gRenderPlats();
   $('g-cfg-modal').classList.add('open');
 }
@@ -1154,14 +1229,30 @@ function gCerrarCfg(){ $('g-cfg-modal').classList.remove('open'); }
 function gGuardarObjetivo(){
   gState.objetivo=parseFloat($('cfg-objetivo').value)||0;
   gState.recargoManual=parseFloat($('cfg-recargo-manual').value)||0;
-  gSave(); gRenderHeader(); gRenderHistorial();
+  gSave(); gCerrarCfg(); gRenderHeader(); gRenderHistorial();
   showToast('✅ Configuración guardada');
 }
+var _guardandoIng=false;
 function gGuardarIngresos(){
-  gState.acum10=parseFloat($('cfg-acum10').value)||0;
-  gState.ingresoFijo=parseFloat($('cfg-ingfijo').value)||0;
-  gSave(); gRenderAll();
-  showToast('✅ Ingresos actualizados');
+  if(_guardandoIng) return; _guardandoIng=true;
+  setTimeout(function(){_guardandoIng=false;},1000);
+  var v10=parseFloat(String($('cfg-acum10').value).replace(/\./g,'').replace(',','.'))||0;
+  var vMan=parseFloat(String($('cfg-ingmanual').value).replace(/\./g,'').replace(',','.'))||0;
+  gState.acum10=v10;
+  gState.ingresoManual=vMan;
+  gSave();
+  $('g-cfg-modal').style.display='none';
+  $('g-cfg-modal').classList.remove('open');
+  setTimeout(function(){
+    var totalVarios=(gState.operaciones||[]).filter(function(o){return o.tipo==='ingreso_varios';}).reduce(function(a,o){return a+Number(o.monto||0);},0);
+    var totalExtrac=(gState.operaciones||[]).filter(function(o){return o.tipo==='extraccion';}).reduce(function(a,o){return a+Number(o.monto||0);},0);
+    var totalIng=vMan+totalVarios+totalExtrac;
+    var txt=fmtG(totalIng);
+    document.getElementById('g-ingfijo-val').textContent=txt;
+    document.getElementById('g-acum10-val').textContent=fmtG(v10);
+    document.getElementById('g-total-ingresado-header').textContent=totalIng>0?('▸ '+txt):'';
+    showToast('✅ Ingreso: '+txt);
+  },80);
 }
 function gResetMes(){
   mConfirm('¿Resetear mes?\nSe limpia: 10% acumulado, Ingreso Fijo e ingresos del historial.\nEl Objetivo y las Tarjetas NO se tocan.', function(){
@@ -1238,7 +1329,7 @@ function gEliminarTarjeta(){
 function gAbrirModalOperar(){
   var m=$('modal-operar'); if(!m) return;
   m.style.display='flex';
-  var recAuto=(gState.operaciones||[]).filter(function(o){return o.tipo==='extraccion'&&o.costoExtra==='si'&&!o.reseteado;}).reduce(function(a,o){return a+(o.recargo||0);},0);
+  var recAuto=(gState.operaciones||[]).filter(function(o){return o.tipo==='extraccion'&&o.costoExtra==='si'&&!o.reseteado;}).reduce(function(a,o){return a+Number(o.recargo||0);},0);
   if($('modal-recargo-display')) $('modal-recargo-display').textContent=fmtG(recAuto+(gState.recargoManual||0));
   var sel=$('mop-tarj');
   sel.innerHTML='<option value="">-- Seleccionar --</option>';
@@ -1306,6 +1397,7 @@ function importarTodo(){
           if(!gState.operaciones) gState.operaciones=[];
           if(gState.acum10===undefined) gState.acum10=0;
           if(gState.ingresoFijo===undefined) gState.ingresoFijo=0;
+          if(gState.ingresoManual===undefined) gState.ingresoManual=0;
           gSave();
           if(todo.vencim_serv) localStorage.setItem('v40_services',JSON.stringify(todo.vencim_serv));
           if(todo.vencim_hist) localStorage.setItem('v40_history',JSON.stringify(todo.vencim_hist));
@@ -1627,25 +1719,46 @@ function gConfirmarEditIngreso(){
 
 /* Detalle ingreso al tocar el box */
 function gMostrarDetalleIngreso(){
-  var ops=(gState.operaciones||[]).filter(function(o){return o.tipo==='ingreso_varios'||o.tipo==='ingreso_fijo';});
-  if(!ops.length){ mAviso('Sin ingresos registrados aún.'); return; }
-  var totalVarios=ops.filter(function(o){return o.tipo==='ingreso_varios';}).reduce(function(a,o){return a+(o.monto||0);},0);
-  var totalFijo=ops.filter(function(o){return o.tipo==='ingreso_fijo';}).reduce(function(a,o){return a+(o.monto||0);},0);
-  var total10=totalVarios*0.1;
-  var total90=totalVarios*0.9;
-  var totalBruto=totalVarios+totalFijo;
-  var html='<b style="color:var(--green)">TOTAL INGRESADO: '+fmtG(totalBruto)+'</b>';
-  if(totalVarios>0){
-    html+='<br/><br/><span style="color:var(--muted);font-size:12px;">📥 VARIOS (con descuento)</span>'
-      +'<br/>Bruto: '+fmtG(totalVarios)
-      +'<br/><span style="color:var(--red)">10% acum: '+fmtG(total10)+'</span>'
-      +'<br/><span style="color:var(--accent)">90% restado obj.: '+fmtG(total90)+'</span>';
-  }
-  if(totalFijo>0){
-    html+='<br/><br/><span style="color:var(--muted);font-size:12px;">💰 FIJO (sin descuento)</span>'
-      +'<br/><span style="color:var(--green)">'+fmtG(totalFijo)+' → sumado al Objetivo</span>';
-  }
+  var ops=gState.operaciones||[];
+  var totalVarios=ops.filter(function(o){return o.tipo==='ingreso_varios';}).reduce(function(a,o){return a+Number(o.monto||0);},0);
+  var totalFijo=ops.filter(function(o){return o.tipo==='ingreso_fijo';}).reduce(function(a,o){return a+Number(o.monto||0);},0);
+  var totalExtrac=ops.filter(function(o){return o.tipo==='extraccion';}).reduce(function(a,o){return a+Number(o.monto||0);},0);
+  var totalInteres=ops.filter(function(o){return o.tipo==='interes';}).reduce(function(a,o){return a+Number(o.monto||0);},0);
+  var totalBruto=totalVarios+totalFijo+totalExtrac+totalInteres;
+  if(!totalBruto){ mAviso('Sin ingresos registrados aún.'); return; }
+  var html='<b style="color:var(--green)">TOTAL: '+fmtG(totalBruto)+'</b>';
+  if(totalExtrac>0) html+='<br/><br/><span style="color:var(--muted);font-size:12px;">🔻 EXTRACCIONES</span><br/><span style="color:var(--accent)">'+fmtG(totalExtrac)+'</span>';
+  if(totalVarios>0) html+='<br/><br/><span style="color:var(--muted);font-size:12px;">📥 VARIOS</span><br/>Bruto: '+fmtG(totalVarios)+'<br/><span style="color:#4f8ef7">10% acum: '+fmtG(totalVarios*0.1)+'</span><br/><span style="color:var(--accent)">90% obj: '+fmtG(totalVarios*0.9)+'</span>';
+  if(totalFijo>0) html+='<br/><br/><span style="color:var(--muted);font-size:12px;">💰 FIJO</span><br/><span style="color:var(--green)">'+fmtG(totalFijo)+'</span>';
+  if(totalInteres>0) html+='<br/><br/><span style="color:var(--muted);font-size:12px;">📈 INTERÉS</span><br/><span style="color:#4f8ef7">'+fmtG(totalInteres)+'</span>';
   mAviso(html);
+}
+
+/* Panel edición ingreso inline */
+function gAbrirEditIngreso(){
+  var p=$('panel-edit-ingreso');
+  if(!p) return;
+  $('inp-ingmanual').value=gState.ingresoManual||0;
+  p.style.display='block';
+  setTimeout(function(){ $('inp-ingmanual').focus(); },100);
+}
+function gCerrarEditIngreso(){
+  var p=$('panel-edit-ingreso');
+  if(p) p.style.display='none';
+}
+var _aplic=false;
+function gAplicarIngManual(){
+  if(_aplic) return; _aplic=true; setTimeout(function(){_aplic=false;},1000);
+  var vMan=parseFloat($('inp-ingmanual').value)||0;
+  gState.ingresoManual=vMan;
+  gState._ingresoPisado=true; // flag: el total fue pisado manualmente
+  gSave();
+  var el=document.getElementById('g-ingfijo-val');
+  el.textContent=fmtG(vMan);
+  el.style.color='#4fffb0';
+  document.getElementById('g-total-ingresado-header').textContent=vMan>0?('▸ '+fmtG(vMan)):'';
+  gCerrarEditIngreso();
+  showToast('✅ Ingreso: '+fmtG(vMan));
 }
 
 /* INIT */
@@ -1656,6 +1769,29 @@ gOnTipoChange();
 gOnCostoChange();
 vRenderWidgets();
 vExpandWidgets();
+// Botones panel ingreso — addEventListener puro, sin inline handlers
+(function(){
+  var btnAp=document.getElementById('btn-aplicar-ing');
+  var btnCe=document.getElementById('btn-cerrar-ing');
+  if(btnAp){
+    btnAp.addEventListener('touchstart',function(e){
+      e.preventDefault();
+      gAplicarIngManual();
+    },{passive:false});
+    btnAp.addEventListener('click',function(e){
+      gAplicarIngManual();
+    });
+  }
+  if(btnCe){
+    btnCe.addEventListener('touchstart',function(e){
+      e.preventDefault();
+      gCerrarEditIngreso();
+    },{passive:false});
+    btnCe.addEventListener('click',function(e){
+      gCerrarEditIngreso();
+    });
+  }
+})();
 </script>
 </body>
 </html>
