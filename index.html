@@ -120,6 +120,20 @@ input:focus,select:focus{border-color:var(--accent)}
       <div id="venc-lista-mini"></div>
     </div>
   </div>
+  <!-- TARJETAS DISPONIBLES -->
+  <div id="tarjetas-disp-widget" style="background:var(--surface);border-radius:12px;border:1px solid var(--border);margin-bottom:14px;overflow:hidden">
+    <div onclick="toggleTarjetasDisp()" style="display:flex;justify-content:space-between;align-items:center;padding:13px 14px;cursor:pointer">
+      <div>
+        <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">💳 Tarjetas disponibles para usar</div>
+        <div style="font-size:13px;font-weight:600;color:var(--ok)" id="tarj-disp-mini">—</div>
+      </div>
+      <span id="tarj-disp-arrow" style="font-size:18px;color:var(--muted);transition:transform 0.2s">▼</span>
+    </div>
+    <div id="tarj-disp-detalle" style="display:none;border-top:1px solid var(--border);padding:10px 14px 14px">
+      <div id="tarj-disp-lista"></div>
+    </div>
+  </div>
+
   <div class="barra-wrap">
     <div style="font-size:15px;font-weight:700;margin-bottom:6px">Recaudación del mes</div>
     <div style="font-size:36px;font-weight:700;color:var(--danger);margin-bottom:2px;letter-spacing:-1px" id="barra-falta-monto">$0</div>
@@ -396,9 +410,10 @@ input:focus,select:focus{border-color:var(--accent)}
         <div class="form-group"><label>Cupo total ($)</label><input type="number" id="t-cupo" placeholder="0"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Vencimiento</label><input type="date" id="t-vence"></div>
-        <div class="form-group"><label>Tasa mensual %</label><input type="number" id="t-tasa" placeholder="8" value="8"></div>
+        <div class="form-group"><label>Vencimiento pago</label><input type="date" id="t-vence"></div>
+        <div class="form-group"><label>Fecha de cierre</label><input type="date" id="t-cierre"></div>
       </div>
+      <div class="form-group"><label>Tasa mensual %</label><input type="number" id="t-tasa" placeholder="8" value="8"></div>
       <button class="btn btn-primary btn-full" onclick="agregarTarjeta()">Agregar tarjeta</button>
     </div>
   </div>
@@ -467,6 +482,51 @@ input:focus,select:focus{border-color:var(--accent)}
   <div class="divider"></div>
   <div class="section-title" style="color:var(--danger)">Zona peligrosa</div>
   <button class="btn btn-danger btn-full" onclick="borrarTodo()">🗑️ Borrar todos los datos</button>
+</div>
+
+<!-- MODAL EDITAR TARJETA -->
+<div id="modal-tarjeta" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;padding:20px;overflow-y:auto">
+  <div style="background:var(--surface);border-radius:16px;padding:20px;max-width:400px;margin:40px auto">
+    <div style="font-size:16px;font-weight:700;margin-bottom:16px">✏️ Editar tarjeta</div>
+    <div class="form-group"><label>Nombre</label><input type="text" id="mt-nombre"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Saldo usado ($)</label><input type="number" id="mt-saldo"></div>
+      <div class="form-group"><label>Cupo total ($)</label><input type="number" id="mt-cupo"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Fecha de cierre</label><input type="date" id="mt-cierre"></div>
+      <div class="form-group"><label>Vencimiento pago</label><input type="date" id="mt-vence"></div>
+    </div>
+    <div class="form-group"><label>Tasa mensual %</label><input type="number" id="mt-tasa"></div>
+    <input type="hidden" id="mt-idx">
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-primary" onclick="guardarEdicionTarjeta()">Guardar</button>
+      <button class="btn btn-danger" onclick="cerrarModalTarjeta()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL PAGO CON TARJETA -->
+<div id="modal-pago-venc" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;padding:20px;overflow-y:auto">
+  <div style="background:var(--surface);border-radius:16px;padding:20px;max-width:400px;margin:40px auto">
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px">💳 Pago total</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px" id="mpv-nombre"></div>
+    <div style="background:rgba(247,106,106,0.1);border:1px solid rgba(247,106,106,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between">
+      <span style="color:var(--muted);font-size:13px">Monto a pagar</span>
+      <span style="font-weight:700;color:var(--danger)" id="mpv-monto"></span>
+    </div>
+    <div class="form-group">
+      <label>¿Con qué pagás?</label>
+      <select id="mpv-sel" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px">
+        <option value="">Efectivo / Débito</option>
+      </select>
+    </div>
+    <input type="hidden" id="mpv-id">
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-ok" onclick="confirmarPagoVencModal()">✓ Confirmar pago</button>
+      <button class="btn btn-danger" onclick="cerrarModalPago()">Cancelar</button>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -727,12 +787,20 @@ function renderVencimientosMini(){
           </div>
         </div>
         ${v.cierre?(()=>{const fc=new Date(v.cierre+'T12:00:00');const dc=Math.ceil((fc-hoyD)/86400000);return `<div style="background:rgba(247,194,106,0.1);border:1px solid rgba(247,194,106,0.3);border-radius:8px;padding:8px 10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:10px;color:var(--accent2);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">⏱ Fecha de cierre</div><div style="font-size:13px;font-weight:700;color:var(--accent2);margin-top:2px">${fc.toLocaleDateString('es-AR')}</div></div><div style="text-align:right"><div style="font-size:18px;font-weight:700;color:${dc<=3?'var(--danger)':'var(--accent2)'}">${dc>0?dc+'d':'HOY'}</div><div style="font-size:10px;color:var(--muted)">para el cierre</div></div></div>`;})():''}
+        ${falta>0?`<div style="background:rgba(247,106,106,0.1);border:1px solid rgba(247,106,106,0.3);border-radius:8px;padding:8px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-size:10px;color:var(--danger);text-transform:uppercase;font-weight:600">Falta pagar</div>
+            <div style="font-size:18px;font-weight:700;color:var(--danger)">${fmt(falta)}</div>
+          </div>
+          ${v.cierre?(()=>{const fc=new Date(v.cierre+'T12:00:00');const dc=Math.ceil((fc-hoyD)/86400000);return '<div style="text-align:right"><div style="font-size:10px;color:var(--accent2);text-transform:uppercase;font-weight:600">Cierre</div><div style="font-size:15px;font-weight:700;color:'+(dc<=3?'var(--danger)':'var(--accent2)')+'">'+dc+'d</div><div style="font-size:10px;color:var(--muted)">'+fc.toLocaleDateString('es-AR')+'</div></div>';})():''}
+        </div>`:''}
         <div style="display:flex;gap:6px;margin-bottom:8px">
-          <input type="number" id="vm_input_${v.id}" placeholder="Pago parcial $" style="flex:1;padding:8px 10px;font-size:13px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text)">
+          <input type="number" id="vm_input_${v.id}" placeholder="Monto parcial $" style="flex:1;padding:8px 10px;font-size:13px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text)">
           <button onclick="agregarPagoVencConMonto(${v.id}, document.getElementById('vm_input_${v.id}').value)" style="padding:8px 12px;background:rgba(247,194,106,0.15);color:var(--accent2);border:1px solid rgba(247,194,106,0.3);border-radius:8px;font-weight:600;font-size:12px;cursor:pointer">Parcial</button>
         </div>
+
         <div style="display:flex;gap:6px">
-          <button onclick="pagarVencimiento(${v.id})" style="flex:1;padding:9px;background:rgba(106,247,160,0.15);color:var(--ok);border:1px solid rgba(106,247,160,0.3);border-radius:8px;font-weight:600;font-size:12px;cursor:pointer">✓ Pago total</button>
+          <button onclick="abrirModalPagoVenc(${v.id})" style="flex:1;padding:9px;background:rgba(106,247,160,0.15);color:var(--ok);border:1px solid rgba(106,247,160,0.3);border-radius:8px;font-weight:600;font-size:12px;cursor:pointer">✓ Pago total</button>
         </div>
       </div>
     </div>`;
@@ -1017,21 +1085,79 @@ function agregarVencimiento(){
   document.getElementById('vn-nombre').value='';document.getElementById('vn-monto').value='';document.getElementById('vn-fecha').value='';document.getElementById('vn-cierre').value='';
 }
 
+function abrirModalPagoVenc(id){
+  const v=data.vencimientos.find(x=>x.id===id);
+  if(!v) return;
+  const montoOrig=v.montoOriginal||v.monto;
+  const pagadoHasta=v.pagos?v.pagos.reduce((s,p)=>s+p.monto,0):0;
+  const faltaPagar=Math.max(0,montoOrig-pagadoHasta);
+  if(!faltaPagar){alert('Ya está completamente pagado');return;}
+  document.getElementById('mpv-id').value=id;
+  document.getElementById('mpv-nombre').textContent=v.nombre;
+  document.getElementById('mpv-monto').textContent=fmt(faltaPagar);
+  const sel=document.getElementById('mpv-sel');
+  sel.innerHTML='<option value="">Efectivo / Débito</option>'+
+    data.tarjetas.map((t,ti)=>'<option value="'+ti+'">'+t.nombre+' — disp: '+fmt(disponibleTarjeta(t))+'</option>').join('');
+  document.getElementById('modal-pago-venc').style.display='block';
+}
+
+function cerrarModalPago(){
+  document.getElementById('modal-pago-venc').style.display='none';
+}
+
+function confirmarPagoVencModal(){
+  const id=parseInt(document.getElementById('mpv-id').value);
+  const tiStr=document.getElementById('mpv-sel').value;
+  const ti=tiStr!==''?parseInt(tiStr):null;
+  const v=data.vencimientos.find(x=>x.id===id);
+  if(!v) return;
+  const montoOrig=v.montoOriginal||v.monto;
+  const pagadoHasta=v.pagos?v.pagos.reduce((s,p)=>s+p.monto,0):0;
+  const faltaPagar=Math.max(0,montoOrig-pagadoHasta);
+  if(ti!==null&&!isNaN(ti)&&data.tarjetas[ti]){
+    // Pago con tarjeta: resta del disponible de la tarjeta
+    data.tarjetas[ti].saldo+=faltaPagar;
+  } else {
+    // Pago efectivo/débito: resta del recaudado del mes
+    const ym=mesActual();
+    if(!data.recaudado[ym]) data.recaudado[ym]=[];
+    data.recaudado[ym].push({concepto:'📤 Pago: '+v.nombre,monto:-faltaPagar,esVencimiento:true});
+  }
+  if(!v.pagos) v.pagos=[];
+  const hoyT=new Date();
+  const hoyYM=hoyT.getFullYear()+'-'+String(hoyT.getMonth()+1).padStart(2,'0');
+  v.pagos.push({monto:faltaPagar,fecha:hoyT.toLocaleDateString('es-AR'),fechaYM:hoyYM});
+  v.pagado=true;
+  v.fechaPago=hoyT.toLocaleDateString('es-AR');
+  v.fechaPagoYM=hoyYM;
+  cerrarModalPago();
+  save();renderAll();
+}
+
+function pagarVencimientoConTarjeta(id, selId){
+  abrirModalPagoVenc(id);
+}
+
 function pagarVencimiento(id){
   const v=data.vencimientos.find(x=>x.id===id);if(!v)return;
   const montoOrig=v.montoOriginal||v.monto;
   const pagadoHasta=v.pagos?v.pagos.reduce((s,p)=>s+p.monto,0):0;
   const faltaPagar=Math.max(0,montoOrig-pagadoHasta);
   if(!confirm('¿Marcar como pagado "'+v.nombre+'" ('+fmt(faltaPagar)+' restante) con '+v.tarjetaNombre+'?'))return;
-  if(v.tarjetaIdx!==null&&data.tarjetas[v.tarjetaIdx]) data.tarjetas[v.tarjetaIdx].saldo+=faltaPagar;
+  // Solo afectar tarjeta si tiene tarjetaIdx configurado
+  if(v.tarjetaIdx!==null&&v.tarjetaIdx!==undefined&&data.tarjetas[v.tarjetaIdx]){
+    data.tarjetas[v.tarjetaIdx].saldo+=faltaPagar;
+  } else {
+    // Sin tarjeta: restar del recaudado del mes
+    const hoyYM2=new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0');
+    if(!data.recaudado[hoyYM2]) data.recaudado[hoyYM2]=[];
+    data.recaudado[hoyYM2].push({concepto:'📤 Pago: '+v.nombre,monto:-faltaPagar,esVencimiento:true});
+  }
   const hoyPagoTotal=new Date();
   const hoyYM=hoyPagoTotal.getFullYear()+'-'+String(hoyPagoTotal.getMonth()+1).padStart(2,'0');
   if(faltaPagar>0){
     if(!v.pagos) v.pagos=[];
     v.pagos.push({monto:faltaPagar,fecha:hoyPagoTotal.toLocaleDateString('es-AR'),fechaYM:hoyYM});
-    // Registrar egreso en recaudado del mes
-    if(!data.recaudado[hoyYM]) data.recaudado[hoyYM]=[];
-    data.recaudado[hoyYM].push({concepto:'📤 Pago: '+v.nombre,monto:-faltaPagar,esVencimiento:true});
   }
   v.pagado=true;
   v.fechaPago=hoyPagoTotal.toLocaleDateString('es-AR');
@@ -1126,8 +1252,9 @@ function renderVencimientosOp(){
           <input type="number" id="pago_input_${v.id}" placeholder="Monto parcial $" style="flex:1;padding:8px 10px;font-size:13px">
           <button class="btn btn-warn" style="flex:none;padding:8px 12px" onclick="agregarPagoVenc(${v.id})">Parcial</button>
         </div>
+
         <div class="card-actions">
-          <button class="btn btn-ok" onclick="pagarVencimiento(${v.id})">✓ Pago total</button>
+          <button class="btn btn-ok" onclick="abrirModalPagoVenc(${v.id})">✓ Pago total</button>
           <button class="btn btn-warn" onclick="editarVencimiento(${v.id})">Editar</button>
           <button class="btn btn-danger" onclick="eliminarVencimiento(${v.id})">✕</button>
         </div>
@@ -1265,16 +1392,20 @@ function renderTarjetas(){
     const disp=disponibleTarjeta(t);
     const pctUsado=t.cupo?Math.min(100,t.saldo/t.cupo*100):0;
     const cuotasActivas=data.cuotas.filter(c=>c.tarjetaIdx===i);
+    const hoyD2=new Date();
+    let diasCierre=null;
+    if(t.cierre){const fc=new Date(t.cierre+'T12:00:00');diasCierre=Math.ceil((fc-hoyD2)/86400000);}
+    const cierreColor=diasCierre!==null?(diasCierre>=25?'var(--ok)':diasCierre>=10?'var(--accent2)':'var(--danger)'):'var(--muted)';
     return `<div class="card">
       <div class="card-header"><span class="card-nombre">${t.nombre}</span>${badge}</div>
       <div class="card-row"><span>Saldo usado</span><span class="c-danger">${fmt(t.saldo)}</span></div>
       ${t.cupo?`<div class="card-row"><span>Cupo total</span><span>${fmt(t.cupo)}</span></div><div class="card-row"><span>Disponible</span><span class="c-ok">${fmt(disp)}</span></div><div class="disp-bar"><div class="disp-fill" style="width:${100-pctUsado}%"></div></div>`:''}
-      <div class="card-row" style="margin-top:6px"><span>Interés si no pagás</span><span class="c-danger">${fmt(t.saldo*t.tasa/100)}/mes</span></div>
-      ${t.vence?`<div class="card-row"><span>Vencimiento</span><span>${new Date(t.vence+'T12:00:00').toLocaleDateString('es-AR')}</span></div>`:''}
+      ${t.cierre?`<div class="card-row" style="margin-top:6px"><span>Cierre</span><span style="color:${cierreColor};font-weight:700">${new Date(t.cierre+'T12:00:00').toLocaleDateString('es-AR')} · en ${diasCierre}d</span></div>`:''}
+      ${t.vence?`<div class="card-row"><span>Vencimiento pago</span><span>${new Date(t.vence+'T12:00:00').toLocaleDateString('es-AR')}</span></div>`:''}
       ${cuotasActivas.length?`<div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border)"><div style="font-size:11px;color:var(--muted);margin-bottom:4px">CUOTAS ACTIVAS</div>${cuotasActivas.map(c=>`<div style="font-size:12px;display:flex;justify-content:space-between;margin-bottom:3px"><span style="color:var(--muted)">${c.desc}</span><span style="color:var(--gold)">${fmt(c.montoCuota)}/mes</span></div>`).join('')}</div>`:''}
       <div class="card-actions">
         <button class="btn btn-ok" onclick="pagarTarjeta(${i})">Pagar</button>
-        <button class="btn btn-warn" onclick="editarSaldo(${i})">Editar saldo</button>
+        <button class="btn btn-warn" onclick="editarTarjeta(${i})">Editar</button>
         <button class="btn btn-danger" onclick="eliminarTarjeta(${i})">✕</button>
       </div>
     </div>`;
@@ -1288,8 +1419,9 @@ function agregarTarjeta(){
   const vence=document.getElementById('t-vence').value;
   const tasa=parseFloat(document.getElementById('t-tasa').value)||8;
   if(!nombre){alert('Ingresá un nombre');return;}
-  data.tarjetas.push({nombre,saldo,cupo,vence,tasa});save();renderAll();
-  document.getElementById('t-nombre').value='';document.getElementById('t-saldo').value='';document.getElementById('t-cupo').value='';document.getElementById('t-vence').value='';
+  const cierre=document.getElementById('t-cierre').value;
+  data.tarjetas.push({nombre,saldo,cupo,vence,cierre:cierre||null,tasa});save();renderAll();
+  document.getElementById('t-nombre').value='';document.getElementById('t-saldo').value='';document.getElementById('t-cupo').value='';document.getElementById('t-vence').value='';document.getElementById('t-cierre').value='';
 }
 function pagarTarjeta(i){
   const monto=prompt(`¿Cuánto pagás en ${data.tarjetas[i].nombre}?\n(Saldo: ${fmt(data.tarjetas[i].saldo)})`,data.tarjetas[i].saldo);
@@ -1298,6 +1430,34 @@ function pagarTarjeta(i){
   save();renderAll();
 }
 function editarSaldo(i){const nuevo=prompt(`Nuevo saldo de ${data.tarjetas[i].nombre}:`,data.tarjetas[i].saldo);if(!nuevo)return;data.tarjetas[i].saldo=parseFloat(nuevo)||0;save();renderAll();}
+
+function editarTarjeta(i){
+  const t=data.tarjetas[i];
+  document.getElementById('mt-idx').value=i;
+  document.getElementById('mt-nombre').value=t.nombre||'';
+  document.getElementById('mt-saldo').value=t.saldo||0;
+  document.getElementById('mt-cupo').value=t.cupo||0;
+  document.getElementById('mt-cierre').value=t.cierre||'';
+  document.getElementById('mt-vence').value=t.vence||'';
+  document.getElementById('mt-tasa').value=t.tasa||8;
+  document.getElementById('modal-tarjeta').style.display='block';
+}
+
+function cerrarModalTarjeta(){
+  document.getElementById('modal-tarjeta').style.display='none';
+}
+
+function guardarEdicionTarjeta(){
+  const i=parseInt(document.getElementById('mt-idx').value);
+  data.tarjetas[i].nombre=document.getElementById('mt-nombre').value.trim()||data.tarjetas[i].nombre;
+  data.tarjetas[i].saldo=parseFloat(document.getElementById('mt-saldo').value)||0;
+  data.tarjetas[i].cupo=parseFloat(document.getElementById('mt-cupo').value)||0;
+  data.tarjetas[i].cierre=document.getElementById('mt-cierre').value||null;
+  data.tarjetas[i].vence=document.getElementById('mt-vence').value||null;
+  data.tarjetas[i].tasa=parseFloat(document.getElementById('mt-tasa').value)||8;
+  cerrarModalTarjeta();
+  save();renderAll();
+}
 function eliminarTarjeta(i){data.tarjetas.splice(i,1);save();renderAll();}
 
 // ---- COSECHA ----
@@ -1533,6 +1693,47 @@ function toggleRecaudado(){
   const abierto = det.style.display !== 'none';
   det.style.display = abierto ? 'none' : 'block';
   arr.style.transform = abierto ? '' : 'rotate(90deg)';
+}
+
+function toggleTarjetasDisp(){
+  const det=document.getElementById('tarj-disp-detalle');
+  const arr=document.getElementById('tarj-disp-arrow');
+  const abierto=det.style.display!=='none';
+  det.style.display=abierto?'none':'block';
+  arr.style.transform=abierto?'':'rotate(180deg)';
+}
+
+function renderTarjetasDisponibles(){
+  const hoyD=new Date();
+  const aptas=data.tarjetas.filter(t=>{
+    if(!t.cierre) return false;
+    const fc=new Date(t.cierre+'T12:00:00');
+    const dias=Math.ceil((fc-hoyD)/86400000);
+    return dias>=25;
+  });
+  const mini=document.getElementById('tarj-disp-mini');
+  if(mini) mini.textContent=aptas.length?aptas.length+' tarjeta'+(aptas.length!==1?'s':'')+' apta'+(aptas.length!==1?'s':''):'Sin tarjetas con 25+ días para el cierre';
+  const lista=document.getElementById('tarj-disp-lista');
+  if(!lista) return;
+  if(!aptas.length){
+    lista.innerHTML='<div style="font-size:13px;color:var(--muted);padding:4px 0">Ninguna tarjeta tiene 25 días o más para el cierre.</div>';
+    return;
+  }
+  lista.innerHTML=aptas.map(t=>{
+    const fc=new Date(t.cierre+'T12:00:00');
+    const dias=Math.ceil((fc-hoyD)/86400000);
+    const disp=disponibleTarjeta(t);
+    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div>
+        <div style="font-weight:700;font-size:13px">${t.nombre}</div>
+        <div style="font-size:11px;color:var(--ok);margin-top:1px">Cierre en ${dias}d · ${fc.toLocaleDateString('es-AR')}</div>
+      </div>
+      <div style="text-align:right">
+        <div style="font-weight:700;color:var(--ok);font-size:14px">${fmt(disp)}</div>
+        <div style="font-size:11px;color:var(--muted)">disponible</div>
+      </div>
+    </div>`;
+  }).join('');
 }
 
 function renderAll(){
