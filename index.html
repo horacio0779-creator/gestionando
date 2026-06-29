@@ -192,13 +192,24 @@ input:focus,select:focus{border-color:var(--accent)}
     </div>
   </div>
 
-  <div class="section-title">Lo que ya recaudaste</div>
-  <div id="lista-recaudado"></div>
-  <div class="form-row" style="margin-bottom:10px">
-    <div class="form-group" style="margin:0"><input type="text" id="rec-concepto" placeholder="Concepto"></div>
-    <div class="form-group" style="margin:0"><input type="number" id="rec-monto" placeholder="Monto $"></div>
+  <!-- RECAUDADO COLAPSABLE -->
+  <div style="background:var(--surface);border-radius:12px;border:1px solid var(--border);margin-bottom:10px;overflow:hidden">
+    <div onclick="toggleRecaudado()" style="display:flex;justify-content:space-between;align-items:center;padding:13px 14px;cursor:pointer">
+      <div>
+        <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">✅ Lo que ya recaudaste</div>
+        <div style="font-size:16px;font-weight:700;color:var(--ok)" id="rec-total-mini">$0</div>
+      </div>
+      <span id="rec-arrow" style="font-size:18px;color:var(--muted);transition:transform 0.2s">▶</span>
+    </div>
+    <div id="rec-detalle" style="display:none;border-top:1px solid var(--border);padding:12px 14px 14px">
+      <div id="lista-recaudado"></div>
+      <div class="form-row" style="margin-bottom:10px;margin-top:8px">
+        <div class="form-group" style="margin:0"><input type="text" id="rec-concepto" placeholder="Concepto"></div>
+        <div class="form-group" style="margin:0"><input type="number" id="rec-monto" placeholder="Monto $"></div>
+      </div>
+      <button class="btn btn-ok btn-full" onclick="agregarRecaudado()">+ Agregar recaudado</button>
+    </div>
   </div>
-  <button class="btn btn-ok btn-full" onclick="agregarRecaudado()">+ Agregar recaudado</button>
 </div>
 
 <!-- ===================== OPERACIONES ===================== -->
@@ -247,8 +258,19 @@ input:focus,select:focus{border-color:var(--accent)}
       <div class="fondo-card"><div class="fondo-label">💰 10% este mes</div><div class="fondo-value" id="fondo-mes2">$0</div></div>
       <div class="fondo-card"><div class="fondo-label">🏦 10% acumulado</div><div class="fondo-value" id="fondo-total2">$0</div></div>
     </div>
-    <div class="section-title">Ingresos extra del mes</div>
-    <div id="lista-ingresos-extra"></div>
+    <!-- INGRESOS EXTRA COLAPSABLE -->
+    <div style="background:var(--surface2);border-radius:12px;border:1px solid var(--border);margin-bottom:14px;overflow:hidden">
+      <div onclick="toggleIngresosExtra()" style="display:flex;justify-content:space-between;align-items:center;padding:13px 14px;cursor:pointer">
+        <div>
+          <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Ingresos extra del mes</div>
+          <div style="font-size:16px;font-weight:700;color:var(--ok)" id="ie-total-mini">$0</div>
+        </div>
+        <span id="ie-arrow" style="font-size:18px;color:var(--muted);transition:transform 0.2s">▶</span>
+      </div>
+      <div id="ie-detalle" style="display:none;border-top:1px solid var(--border);padding:10px 14px 4px">
+        <div id="lista-ingresos-extra"></div>
+      </div>
+    </div>
     <div class="card">
       <div class="card-nombre" style="margin-bottom:10px">➕ Agregar ingreso extra</div>
       <div class="form-group"><label>Concepto</label><input type="text" id="ie-concepto" placeholder="Ej: Uber, Informe dominio..."></div>
@@ -559,15 +581,59 @@ function renderResumen(){
     arrCard.style.display='none';
   }
 
-  // Recaudado
+  // Recaudado - agrupar por concepto
   const items=data.recaudado[ym]||[];
   const extra=data.ingresosExtra[ym]||[];
   const exts=data.extracciones[ym]||[];
+
+  // Agrupar items manuales por concepto
+  const agrupado={};
+  items.forEach((r,i)=>{
+    const key=r.concepto.toLowerCase().trim();
+    if(!agrupado[key]) agrupado[key]={concepto:r.concepto,monto:0,indices:[]};
+    agrupado[key].monto+=r.monto;
+    agrupado[key].indices.push(i);
+  });
+
   let html='';
-  items.forEach((r,i)=>{html+=`<div class="rec-item"><span style="font-weight:600">${r.concepto}</span><span style="display:flex;align-items:center;gap:8px"><span style="color:var(--ok);font-weight:700">${fmt(r.monto)}</span><span class="rec-del" onclick="eliminarRecaudado('${ym}',${i})">✕</span></span></div>`;});
-  extra.forEach(e=>{html+=`<div class="rec-item"><span style="font-weight:600">${e.concepto} <span style="font-size:10px;background:rgba(106,247,160,0.2);color:var(--ok);padding:2px 6px;border-radius:10px">90%</span></span><span style="color:var(--ok);font-weight:700">${fmt(e.p90)}</span></div>`;});
-  exts.forEach(e=>{html+=`<div class="rec-item"><span style="font-weight:600">💳 ${e.tarjetaNombre} / ${e.metodoNombre}</span><span style="color:var(--ok);font-weight:700">${fmt(e.neto)}</span></div>`;});
+  Object.values(agrupado).forEach(g=>{
+    html+=`<div class="rec-item">
+      <span style="font-weight:600">${g.concepto}${g.indices.length>1?' <span style="font-size:10px;background:rgba(124,106,247,0.2);color:var(--accent);padding:2px 6px;border-radius:10px">x'+g.indices.length+'</span>':''}</span>
+      <span style="display:flex;align-items:center;gap:8px">
+        <span style="color:var(--ok);font-weight:700">${fmt(g.monto)}</span>
+        <span class="rec-del" onclick="eliminarGrupoRecaudado('${ym}',[${g.indices.join(',')}])">✕</span>
+      </span>
+    </div>`;
+  });
+
+  // Ingresos extra agrupados
+  const agrupadoExtra={};
+  extra.forEach(e=>{
+    const key=e.concepto.toLowerCase().trim();
+    if(!agrupadoExtra[key]) agrupadoExtra[key]={concepto:e.concepto,p90:0,count:0};
+    agrupadoExtra[key].p90+=e.p90;
+    agrupadoExtra[key].count++;
+  });
+  Object.values(agrupadoExtra).forEach(g=>{
+    html+=`<div class="rec-item"><span style="font-weight:600">${g.concepto}${g.count>1?' <span style="font-size:10px;background:rgba(124,106,247,0.2);color:var(--accent);padding:2px 6px;border-radius:10px">x'+g.count+'</span>':''} <span style="font-size:10px;background:rgba(106,247,160,0.2);color:var(--ok);padding:2px 6px;border-radius:10px">90%</span></span><span style="color:var(--ok);font-weight:700">${fmt(g.p90)}</span></div>`;
+  });
+
+  // Extracciones agrupadas por tarjeta+método
+  const agrupadoExt={};
+  exts.forEach(e=>{
+    const key=e.tarjetaNombre+'_'+e.metodoNombre;
+    if(!agrupadoExt[key]) agrupadoExt[key]={tarjetaNombre:e.tarjetaNombre,metodoNombre:e.metodoNombre,neto:0,count:0};
+    agrupadoExt[key].neto+=e.neto;
+    agrupadoExt[key].count++;
+  });
+  Object.values(agrupadoExt).forEach(g=>{
+    html+=`<div class="rec-item"><span style="font-weight:600">💳 ${g.tarjetaNombre} / ${g.metodoNombre}</span><span style="color:var(--ok);font-weight:700">${fmt(g.neto)}</span></div>`;
+  });
+
   document.getElementById('lista-recaudado').innerHTML=html||'<div class="empty-state" style="padding:12px">Nada recaudado aún</div>';
+  // Actualizar mini total
+  const miniEl=document.getElementById('rec-total-mini');
+  if(miniEl) miniEl.textContent=fmt(recaudado);
 
   renderVencimientosMini();
 }
@@ -610,6 +676,11 @@ function agregarRecaudado(){
   document.getElementById('rec-concepto').value='';document.getElementById('rec-monto').value='';
 }
 function eliminarRecaudado(ym,i){data.recaudado[ym].splice(i,1);save();renderResumen();}
+function eliminarGrupoRecaudado(ym,indices){
+  // Eliminar de mayor a menor para no alterar índices
+  indices.sort((a,b)=>b-a).forEach(i=>data.recaudado[ym].splice(i,1));
+  save();renderResumen();
+}
 
 // ---- EXTRACCION ----
 function poblarSelectTarjeta(id){
@@ -691,13 +762,50 @@ function renderIngresosExtra(){
   document.getElementById('fondo-mes2').textContent=fmt(fondo.mesMonto);
   document.getElementById('fondo-total2').textContent=fmt(fondo.disponible);
   const items=data.ingresosExtra[ym]||[];
-  document.getElementById('lista-ingresos-extra').innerHTML=items.length?items.map((ie,i)=>`
-    <div class="card" style="padding:10px 14px;margin-bottom:8px">
-      <div class="card-header" style="margin-bottom:6px"><span class="card-nombre">${ie.concepto}</span><span class="rec-del" onclick="eliminarIngresoExtra('${ym}',${i})">✕</span></div>
-      <div class="card-row"><span>Total</span><span>${fmt(ie.monto)}</span></div>
-      <div class="card-row"><span>90% → Recaudación</span><span class="c-ok">${fmt(ie.p90)}</span></div>
-      <div class="card-row"><span>10% → Fondo</span><span class="c-gold">${fmt(ie.p10)}</span></div>
-    </div>`).join(''):'<div class="empty-state">Sin ingresos extra este mes.</div>';
+
+  // Agrupar por concepto
+  const grupos={};
+  items.forEach((ie,i)=>{
+    const key=ie.concepto.toLowerCase().trim();
+    if(!grupos[key]) grupos[key]={concepto:ie.concepto,monto:0,p90:0,p10:0,indices:[],count:0};
+    grupos[key].monto+=ie.monto;
+    grupos[key].p90+=ie.p90;
+    grupos[key].p10+=ie.p10;
+    grupos[key].indices.push(i);
+    grupos[key].count++;
+  });
+
+  const totalIngresos=items.reduce((s,ie)=>s+ie.monto,0);
+  const miniEl=document.getElementById('ie-total-mini');
+  if(miniEl) miniEl.textContent=fmt(totalIngresos);
+
+  const grupos_html = Object.values(grupos).map((g,gi)=>{
+    const uid = 'ie_grupo_'+gi;
+    const detalle = g.indices.map((idx,ii)=>{
+      const ie = items[idx];
+      return `<div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-top:1px solid var(--border)">
+        <span style="color:var(--muted)">Ingreso ${ii+1}</span>
+        <span style="display:flex;gap:10px;align-items:center">
+          <span style="color:var(--text);font-weight:600">${fmt(ie.monto)}</span>
+          <span class="rec-del" style="font-size:14px" onclick="eliminarIngresoExtra('${ym}',${idx});renderIngresosExtra()">✕</span>
+        </span>
+      </div>`;
+    }).join('');
+    return `<div class="card" style="padding:10px 14px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;cursor:pointer" onclick="toggleGrupoIE('${uid}')">
+        <span class="card-nombre">${g.concepto}${g.count>1?` <span style="font-size:11px;background:rgba(124,106,247,0.2);color:var(--accent);padding:2px 8px;border-radius:10px">x${g.count}</span>`:''}</span>
+        <span style="display:flex;align-items:center;gap:8px">
+          <span class="rec-del" onclick="event.stopPropagation();eliminarGrupoIngresoExtra('${ym}',[${g.indices.join(',')}])">✕</span>
+          <span id="${uid}_arrow" style="color:var(--muted);font-size:14px">▶</span>
+        </span>
+      </div>
+      <div class="card-row" style="margin-top:8px"><span>Total</span><span>${fmt(g.monto)}</span></div>
+      <div class="card-row"><span>90% → Recaudación</span><span class="c-ok">${fmt(g.p90)}</span></div>
+      <div class="card-row"><span>10% → Fondo</span><span class="c-gold">${fmt(g.p10)}</span></div>
+      <div id="${uid}" style="display:none;margin-top:4px">${detalle}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('lista-ingresos-extra').innerHTML=grupos_html||'<div class="empty-state">Sin ingresos extra este mes.</div>';
   document.getElementById('lista-gastos-fondo').innerHTML=data.gastosFondo.length?data.gastosFondo.map((g,i)=>`
     <div class="rec-item"><span style="font-weight:600">${g.desc} <span style="font-size:11px;color:var(--muted)">${g.fecha||''}</span></span>
     <span style="display:flex;align-items:center;gap:8px"><span style="color:var(--danger);font-weight:700">${fmt(g.monto)}</span><span class="rec-del" onclick="eliminarGastoFondo(${i})">✕</span></span></div>`).join(''):'<div class="empty-state">Sin gastos del fondo.</div>';
@@ -715,6 +823,10 @@ function agregarIngresoExtra(){
   document.getElementById('ie-prev-90').textContent='$0';document.getElementById('ie-prev-10').textContent='$0';
 }
 function eliminarIngresoExtra(ym,i){data.ingresosExtra[ym].splice(i,1);save();renderAll();}
+function eliminarGrupoIngresoExtra(ym,indices){
+  indices.sort((a,b)=>b-a).forEach(i=>data.ingresosExtra[ym].splice(i,1));
+  save();renderAll();
+}
 function agregarGastoFondo(){
   const desc=document.getElementById('gf10-desc').value.trim();
   const monto=parseFloat(document.getElementById('gf10-monto').value)||0;
@@ -1175,6 +1287,31 @@ function calcRecaudadoConKey(ym){
   const extra90 = (data.ingresosExtra[ym]||[]).reduce((s,i)=>s+i.p90,0);
   const extNeto = (data.extracciones[ym]||[]).reduce((s,e)=>s+e.neto,0);
   return manual + extra90 + extNeto;
+}
+
+function toggleGrupoIE(uid){
+  const det = document.getElementById(uid);
+  const arr = document.getElementById(uid+'_arrow');
+  if(!det) return;
+  const abierto = det.style.display !== 'none';
+  det.style.display = abierto ? 'none' : 'block';
+  if(arr) arr.style.transform = abierto ? '' : 'rotate(90deg)';
+}
+
+function toggleIngresosExtra(){
+  const det = document.getElementById('ie-detalle');
+  const arr = document.getElementById('ie-arrow');
+  const abierto = det.style.display !== 'none';
+  det.style.display = abierto ? 'none' : 'block';
+  arr.style.transform = abierto ? '' : 'rotate(90deg)';
+}
+
+function toggleRecaudado(){
+  const det = document.getElementById('rec-detalle');
+  const arr = document.getElementById('rec-arrow');
+  const abierto = det.style.display !== 'none';
+  det.style.display = abierto ? 'none' : 'block';
+  arr.style.transform = abierto ? '' : 'rotate(90deg)';
 }
 
 function renderAll(){
