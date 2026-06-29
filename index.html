@@ -338,8 +338,9 @@ input:focus,select:focus{border-color:var(--accent)}
         <div class="form-group"><label>Forma de pago</label><select id="vn-tarjeta"></select></div>
         <div class="form-row">
           <div class="form-group"><label>Monto ($)</label><input type="number" id="vn-monto" placeholder="0"></div>
-          <div class="form-group"><label>Fecha</label><input type="date" id="vn-fecha"></div>
+          <div class="form-group"><label>Fecha vencimiento</label><input type="date" id="vn-fecha"></div>
         </div>
+        <div class="form-group"><label>Fecha de cierre (opcional)</label><input type="date" id="vn-cierre"></div>
         <button class="btn btn-primary btn-full" onclick="agregarVencimiento()">Agregar</button>
       </div>
     </div>
@@ -481,6 +482,30 @@ let data = JSON.parse(localStorage.getItem('calesita_v6')||'null') || {
 let hoy=new Date();
 let mesVista={y:hoy.getFullYear(),m:hoy.getMonth()};
 
+// Migración: agregar fechaYM a pagos existentes que no la tienen
+function migrarFechasYM(){
+  const hoyD=new Date();
+  const hoyYM=hoyD.getFullYear()+'-'+String(hoyD.getMonth()+1).padStart(2,'0');
+  let cambios=false;
+  (data.vencimientos||[]).forEach(v=>{
+    if(v.pagos&&v.pagos.length>0){
+      v.pagos.forEach(p=>{
+        if(!p.fechaYM){
+          // Como no sabemos el mes exacto, asumimos el mes actual
+          p.fechaYM=hoyYM;
+          cambios=true;
+        }
+      });
+    }
+    if(v.pagado&&!v.fechaPagoYM){
+      v.fechaPagoYM=hoyYM;
+      cambios=true;
+    }
+  });
+  if(cambios) save();
+}
+migrarFechasYM();
+
 function mesKey(y,m){return `${y}-${String(m+1).padStart(2,'0')}`;}
 function mesActual(){return mesKey(mesVista.y,mesVista.m);}
 function fmt(n){return '$'+Math.round(n).toLocaleString('es-AR');}
@@ -538,6 +563,13 @@ function calcTotalMes(ym){
   const costoExt=(data.extracciones[ym]||[]).reduce((s,e)=>s+e.costo,0);
   const arrastre=data.arrastre?.monto||0;
   return{fijos,imps,tarjs,costoExt,arrastre,total:fijos+imps+tarjs+costoExt+arrastre};
+}
+
+function parseFechaAR(fechaStr){
+  if(!fechaStr) return null;
+  const p=fechaStr.split('/');
+  if(p.length!==3) return null;
+  return {d:parseInt(p[0]),m:parseInt(p[1]),y:parseInt(p[2])};
 }
 
 function calcRecaudado(ym){
@@ -598,10 +630,11 @@ function renderResumen(){
 
   let html='';
   Object.values(agrupado).forEach(g=>{
+    const esEgreso = g.monto < 0;
     html+=`<div class="rec-item">
       <span style="font-weight:600">${g.concepto}${g.indices.length>1?' <span style="font-size:10px;background:rgba(124,106,247,0.2);color:var(--accent);padding:2px 6px;border-radius:10px">x'+g.indices.length+'</span>':''}</span>
       <span style="display:flex;align-items:center;gap:8px">
-        <span style="color:var(--ok);font-weight:700">${fmt(g.monto)}</span>
+        <span style="color:${esEgreso?'var(--danger)':'var(--ok)'};font-weight:700">${esEgreso?'- ':''} ${fmt(Math.abs(g.monto))}</span>
         <span class="rec-del" onclick="eliminarGrupoRecaudado('${ym}',[${g.indices.join(',')}])">✕</span>
       </span>
     </div>`;
@@ -650,20 +683,65 @@ function toggleVenc(){
 function renderVencimientosMini(){
   const hoyD=new Date();
   const pendientes=data.vencimientos.filter(v=>!v.pagado);
-  const totalVenc=pendientes.reduce((s,v)=>s+v.monto,0);
+  const totalVenc=pendientes.reduce((s,v)=>{
+    const orig=v.montoOriginal||v.monto;
+    const pag=v.pagos?v.pagos.reduce((a,p)=>a+p.monto,0):0;
+    return s+Math.max(0,orig-pag);
+  },0);
   document.getElementById('venc-total-mini').textContent=fmt(totalVenc);
   document.getElementById('venc-cant-mini').textContent=pendientes.length+' pendiente'+(pendientes.length!==1?'s':'');
-  const ordenados=pendientes.sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
+  const ordenados=[...pendientes].sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
   document.getElementById('venc-lista-mini').innerHTML=ordenados.length?ordenados.map(v=>{
     const fv=new Date(v.fecha+'T12:00:00');
     const dias=Math.ceil((fv-hoyD)/86400000);
     const color=dias<=3?'var(--danger)':dias<=10?'var(--accent2)':'var(--ok)';
     const diasTxt=dias<0?'Vencido hace '+Math.abs(dias)+'d':dias===0?'HOY':'En '+dias+'d';
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
-      <div><div style="font-weight:700;font-size:13px">${v.nombre}</div><div style="font-size:11px;color:${color}">${diasTxt} · ${v.tarjetaNombre}</div></div>
-      <span style="font-weight:700;color:var(--danger)">${fmt(v.monto)}</span>
+    const montoOrig=v.montoOriginal||v.monto;
+    const pagado=v.pagos?v.pagos.reduce((s,p)=>s+p.monto,0):0;
+    const falta=Math.max(0,montoOrig-pagado);
+    const pct=montoOrig>0?Math.min(100,pagado/montoOrig*100):0;
+    const tienePagos=v.pagos&&v.pagos.length>0;
+    return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+      <div onclick="toggleVencMini(${v.id})" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer">
+        <div>
+          <div style="font-weight:700;font-size:13px">${v.nombre}</div>
+          <div style="font-size:11px;color:${color};margin-top:1px">${diasTxt} · ${v.tarjetaNombre}</div>
+          ${v.cierre?`<div style="font-size:11px;color:var(--accent2);margin-top:1px">⏱ Cierre: ${new Date(v.cierre+'T12:00:00').toLocaleDateString('es-AR')} · ${Math.ceil((new Date(v.cierre+'T12:00:00')-hoyD)/86400000)>0?'en '+Math.ceil((new Date(v.cierre+'T12:00:00')-hoyD)/86400000)+'d':'HOY'}</div>`:''}
+          ${tienePagos?`<div style="font-size:11px;color:var(--ok)">Pagado: ${fmt(pagado)}</div>`:''}
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:700;color:var(--danger)">${fmt(falta)}</div>
+          <div style="font-size:11px;color:var(--muted)">▶</div>
+        </div>
+      </div>
+      ${tienePagos?`<div style="height:4px;background:var(--surface2);border-radius:2px;overflow:hidden;margin-top:5px"><div style="height:100%;width:${pct}%;background:var(--ok);border-radius:2px"></div></div>`:''}
+      <div id="vm_${v.id}" style="display:none;margin-top:8px">
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+          <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px">TOTAL</div>
+            <div style="font-weight:700;font-size:13px">${fmt(montoOrig)}</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px">FALTA</div>
+            <div style="font-weight:700;font-size:13px;color:${falta>0?'var(--danger)':'var(--ok)'}">${fmt(falta)}</div>
+          </div>
+        </div>
+        ${v.cierre?(()=>{const fc=new Date(v.cierre+'T12:00:00');const dc=Math.ceil((fc-hoyD)/86400000);return `<div style="background:rgba(247,194,106,0.1);border:1px solid rgba(247,194,106,0.3);border-radius:8px;padding:8px 10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:10px;color:var(--accent2);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">⏱ Fecha de cierre</div><div style="font-size:13px;font-weight:700;color:var(--accent2);margin-top:2px">${fc.toLocaleDateString('es-AR')}</div></div><div style="text-align:right"><div style="font-size:18px;font-weight:700;color:${dc<=3?'var(--danger)':'var(--accent2)'}">${dc>0?dc+'d':'HOY'}</div><div style="font-size:10px;color:var(--muted)">para el cierre</div></div></div>`;})():''}
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <input type="number" id="vm_input_${v.id}" placeholder="Pago parcial $" style="flex:1;padding:8px 10px;font-size:13px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text)">
+          <button onclick="agregarPagoVencConMonto(${v.id}, document.getElementById('vm_input_${v.id}').value)" style="padding:8px 12px;background:rgba(247,194,106,0.15);color:var(--accent2);border:1px solid rgba(247,194,106,0.3);border-radius:8px;font-weight:600;font-size:12px;cursor:pointer">Parcial</button>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button onclick="pagarVencimiento(${v.id})" style="flex:1;padding:9px;background:rgba(106,247,160,0.15);color:var(--ok);border:1px solid rgba(106,247,160,0.3);border-radius:8px;font-weight:600;font-size:12px;cursor:pointer">✓ Pago total</button>
+        </div>
+      </div>
     </div>`;
   }).join(''):'<div style="font-size:13px;color:var(--muted);padding:8px 0">Sin vencimientos pendientes.</div>';
+}
+
+function toggleVencMini(id){
+  const el=document.getElementById('vm_'+id);
+  if(el) el.style.display=el.style.display==='none'?'block':'none';
 }
 
 function agregarRecaudado(){
@@ -933,25 +1011,54 @@ function agregarVencimiento(){
   if(pagoVal==='efectivo') tarjetaNombre='Efectivo';
   else if(pagoVal==='debito') tarjetaNombre='Débito / Cuenta';
   else if(pagoVal.startsWith('tc_')){tarjetaIdx=parseInt(pagoVal.replace('tc_',''));tarjetaNombre=data.tarjetas[tarjetaIdx].nombre;}
-  data.vencimientos.push({id:Date.now(),nombre,tarjetaIdx,tarjetaNombre,monto,fecha,pagado:false,fechaPago:null});
+  const cierre=document.getElementById('vn-cierre').value;
+  data.vencimientos.push({id:Date.now(),nombre,tarjetaIdx,tarjetaNombre,monto,montoOriginal:monto,fecha,cierre:cierre||null,pagado:false,fechaPago:null,pagos:[]});
   save();renderVencimientosOp();renderVencimientosMini();
-  document.getElementById('vn-nombre').value='';document.getElementById('vn-monto').value='';document.getElementById('vn-fecha').value='';
+  document.getElementById('vn-nombre').value='';document.getElementById('vn-monto').value='';document.getElementById('vn-fecha').value='';document.getElementById('vn-cierre').value='';
 }
 
 function pagarVencimiento(id){
   const v=data.vencimientos.find(x=>x.id===id);if(!v)return;
-  if(!confirm(`¿Marcar como pagado "${v.nombre}" por ${fmt(v.monto)} con ${v.tarjetaNombre}?`))return;
-  if(v.tarjetaIdx!==null&&data.tarjetas[v.tarjetaIdx]) data.tarjetas[v.tarjetaIdx].saldo+=v.monto;
-  v.pagado=true;v.fechaPago=new Date().toLocaleDateString('es-AR');
+  const montoOrig=v.montoOriginal||v.monto;
+  const pagadoHasta=v.pagos?v.pagos.reduce((s,p)=>s+p.monto,0):0;
+  const faltaPagar=Math.max(0,montoOrig-pagadoHasta);
+  if(!confirm('¿Marcar como pagado "'+v.nombre+'" ('+fmt(faltaPagar)+' restante) con '+v.tarjetaNombre+'?'))return;
+  if(v.tarjetaIdx!==null&&data.tarjetas[v.tarjetaIdx]) data.tarjetas[v.tarjetaIdx].saldo+=faltaPagar;
+  const hoyPagoTotal=new Date();
+  const hoyYM=hoyPagoTotal.getFullYear()+'-'+String(hoyPagoTotal.getMonth()+1).padStart(2,'0');
+  if(faltaPagar>0){
+    if(!v.pagos) v.pagos=[];
+    v.pagos.push({monto:faltaPagar,fecha:hoyPagoTotal.toLocaleDateString('es-AR'),fechaYM:hoyYM});
+    // Registrar egreso en recaudado del mes
+    if(!data.recaudado[hoyYM]) data.recaudado[hoyYM]=[];
+    data.recaudado[hoyYM].push({concepto:'📤 Pago: '+v.nombre,monto:-faltaPagar,esVencimiento:true});
+  }
+  v.pagado=true;
+  v.fechaPago=hoyPagoTotal.toLocaleDateString('es-AR');
+  v.fechaPagoYM=hoyYM;
   save();renderAll();
 }
 
 function editarVencimiento(id){
   const v=data.vencimientos.find(x=>x.id===id);if(!v)return;
-  const nuevoMonto=prompt(`Nuevo monto para "${v.nombre}":`,v.monto);if(nuevoMonto===null)return;
-  const nuevaFecha=prompt(`Nueva fecha (YYYY-MM-DD):`,v.fecha);if(nuevaFecha===null)return;
-  v.monto=parseFloat(nuevoMonto)||v.monto;v.fecha=nuevaFecha||v.fecha;
-  save();renderVencimientosOp();
+  const nuevoNombre=prompt(`Nombre:`,v.nombre);if(nuevoNombre===null)return;
+  const nuevoMonto=prompt(`Monto total ($):`,v.montoOriginal||v.monto);if(nuevoMonto===null)return;
+  const nuevaFecha=prompt(`Fecha vencimiento (YYYY-MM-DD):`,v.fecha);if(nuevaFecha===null)return;
+  const nuevoCierre=prompt(`Fecha de cierre (YYYY-MM-DD, dejar vacío si no aplica):`,v.cierre||'');
+  v.nombre=nuevoNombre||v.nombre;
+  v.montoOriginal=parseFloat(nuevoMonto)||v.montoOriginal||v.monto;
+  v.monto=v.montoOriginal;
+  v.fecha=nuevaFecha||v.fecha;
+  v.cierre=nuevoCierre||null;
+  save();renderAll();
+}
+
+function eliminarDelHistorial(id){
+  if(!confirm('¿Eliminar este registro del historial?')) return;
+  const idx=data.vencimientos.findIndex(x=>x.id==id);
+  if(idx<0) return;
+  data.vencimientos.splice(idx,1);
+  save();renderHistorial();
 }
 
 function eliminarVencimiento(id){
@@ -970,18 +1077,116 @@ function renderVencimientosOp(){
     const dias=Math.ceil((fv-hoyD)/86400000);
     const color=dias<=3?'var(--danger)':dias<=10?'var(--accent2)':'var(--ok)';
     const diasTxt=dias<0?'Vencido hace '+Math.abs(dias)+'d':dias===0?'Vence HOY':'Vence en '+dias+'d';
+    const montoOrig=v.montoOriginal||v.monto;
+    const pagado=v.pagos?v.pagos.reduce((s,p)=>s+p.monto,0):0;
+    const falta=Math.max(0,montoOrig-pagado);
+    const pct=montoOrig>0?Math.min(100,pagado/montoOrig*100):0;
+    const tienePagos=v.pagos&&v.pagos.length>0;
+
+    const listaPagos=tienePagos?v.pagos.map((p,pi)=>`
+      <div style="display:flex;justify-content:space-between;font-size:12px;padding:4px 0;border-top:1px solid var(--border)">
+        <span style="color:var(--muted)">${p.fecha}</span>
+        <span style="display:flex;gap:8px;align-items:center">
+          <span style="color:var(--ok);font-weight:600">${fmt(p.monto)}</span>
+          <span class="rec-del" style="font-size:13px" onclick="eliminarPagoVenc(${v.id},${pi})">✕</span>
+        </span>
+      </div>`).join(''):'';
+
     return `<div class="card" style="border-left:3px solid ${color}">
-      <div class="card-header" style="margin-bottom:8px">
-        <div><div class="card-nombre">${v.nombre}</div><div style="font-size:12px;color:${color};margin-top:2px">${diasTxt} · ${fv.toLocaleDateString('es-AR')}</div></div>
-        <div style="text-align:right"><div style="font-weight:700;font-size:16px;color:var(--danger)">${fmt(v.monto)}</div><div style="font-size:11px;color:var(--muted)">${v.tarjetaNombre}</div></div>
+      <div onclick="toggleVencDetalle(${v.id})" style="cursor:pointer">
+        <div class="card-header" style="margin-bottom:6px">
+          <div>
+            <div class="card-nombre">${v.nombre}</div>
+            <div style="font-size:12px;color:${color};margin-top:2px">${diasTxt} · ${fv.toLocaleDateString('es-AR')}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:700;font-size:16px;color:var(--danger)">${fmt(falta)}</div>
+            <div style="font-size:11px;color:var(--muted)">${v.tarjetaNombre}</div>
+            ${tienePagos?`<div style="font-size:11px;color:var(--ok)">Pagado: ${fmt(pagado)}</div>`:''}
+          </div>
+        </div>
+        ${tienePagos?`<div style="height:5px;background:var(--surface2);border-radius:3px;overflow:hidden;margin-bottom:6px"><div style="height:100%;width:${pct}%;background:var(--ok);border-radius:3px"></div></div>`:''}
       </div>
-      <div class="card-actions">
-        <button class="btn btn-ok" onclick="pagarVencimiento(${v.id})">✓ Pagado</button>
-        <button class="btn btn-warn" onclick="editarVencimiento(${v.id})">Editar</button>
-        <button class="btn btn-danger" onclick="eliminarVencimiento(${v.id})">✕</button>
+      <div id="vd_${v.id}" style="display:none">
+        ${tienePagos?`<div style="margin-bottom:8px;padding-bottom:8px;border-bottom:1px solid var(--border)">
+          <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:4px">Pagos realizados</div>
+          ${listaPagos}
+        </div>`:''}
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+          <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px">TOTAL</div>
+            <div style="font-weight:700;color:var(--text)">${fmt(montoOrig)}</div>
+          </div>
+          <div style="background:var(--surface2);border-radius:8px;padding:8px;text-align:center">
+            <div style="font-size:10px;color:var(--muted);margin-bottom:2px">FALTA</div>
+            <div style="font-weight:700;color:${falta>0?'var(--danger)':'var(--ok)'}">${fmt(falta)}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <input type="number" id="pago_input_${v.id}" placeholder="Monto parcial $" style="flex:1;padding:8px 10px;font-size:13px">
+          <button class="btn btn-warn" style="flex:none;padding:8px 12px" onclick="agregarPagoVenc(${v.id})">Parcial</button>
+        </div>
+        <div class="card-actions">
+          <button class="btn btn-ok" onclick="pagarVencimiento(${v.id})">✓ Pago total</button>
+          <button class="btn btn-warn" onclick="editarVencimiento(${v.id})">Editar</button>
+          <button class="btn btn-danger" onclick="eliminarVencimiento(${v.id})">✕</button>
+        </div>
       </div>
     </div>`;
   }).join(''):'<div class="empty-state">No hay vencimientos pendientes.</div>';
+}
+
+function toggleVencDetalle(id){
+  const el=document.getElementById('vd_'+id);
+  if(el) el.style.display=el.style.display==='none'?'block':'none';
+}
+
+function agregarPagoVencConMonto(id, valorStr){
+  const monto=parseFloat(valorStr)||0;
+  if(!monto){alert('Ingresá un monto');return;}
+  _procesarPagoVenc(id, monto);
+}
+
+function agregarPagoVenc(id){
+  const input=document.getElementById('pago_input_'+id);
+  const monto=parseFloat(input?.value)||0;
+  if(!monto){alert('Ingresá un monto');return;}
+  _procesarPagoVenc(id, monto);
+}
+
+function _procesarPagoVenc(id, monto){
+  const v=data.vencimientos.find(x=>x.id===id);
+  if(!v) return;
+  if(!v.pagos) v.pagos=[];
+  const montoOrig=v.montoOriginal||v.monto;
+  const pagadoHasta=v.pagos.reduce((s,p)=>s+p.monto,0);
+  const falta=montoOrig-pagadoHasta;
+  const pagoReal=Math.min(monto,falta);
+  if(v.tarjetaIdx!==null&&data.tarjetas[v.tarjetaIdx]) data.tarjetas[v.tarjetaIdx].saldo+=pagoReal;
+  const hoyPago=new Date();
+  v.pagos.push({monto:pagoReal,fecha:hoyPago.toLocaleDateString('es-AR'),fechaYM:hoyPago.getFullYear()+'-'+String(hoyPago.getMonth()+1).padStart(2,'0')});
+  // Registrar en recaudación del mes
+  const ym=mesActual();
+  if(!data.recaudado[ym]) data.recaudado[ym]=[];
+  data.recaudado[ym].push({concepto:'📤 Pago: '+v.nombre,monto:-pagoReal,esVencimiento:true});
+  const totalPagado=v.pagos.reduce((s,p)=>s+p.monto,0);
+  if(totalPagado>=montoOrig){
+    const hoyTotal=new Date();
+    v.pagado=true;
+    v.fechaPago=hoyTotal.toLocaleDateString('es-AR');
+    v.fechaPagoYM=hoyTotal.getFullYear()+'-'+String(hoyTotal.getMonth()+1).padStart(2,'0');
+  }
+  save();renderAll();
+}
+
+function eliminarPagoVenc(id,pi){
+  const v=data.vencimientos.find(x=>x.id===id);
+  if(!v||!v.pagos) return;
+  const pago=v.pagos[pi];
+  // Revertir de tarjeta
+  if(v.tarjetaIdx!==null&&data.tarjetas[v.tarjetaIdx]) data.tarjetas[v.tarjetaIdx].saldo=Math.max(0,data.tarjetas[v.tarjetaIdx].saldo-pago.monto);
+  v.pagos.splice(pi,1);
+  save();renderAll();
 }
 
 function renderHistorial(){
@@ -991,13 +1196,25 @@ function renderHistorial(){
   if(busqNombre) pagados=pagados.filter(v=>v.nombre.toLowerCase().includes(busqNombre));
   if(busqFecha) pagados=pagados.filter(v=>v.fecha&&v.fecha.startsWith(busqFecha));
   pagados.sort((a,b)=>new Date(b.fecha)-new Date(a.fecha));
-  document.getElementById('lista-venc-historial').innerHTML=pagados.length?pagados.map(v=>`
-    <div class="card" style="padding:10px 14px;border-left:3px solid var(--ok)">
-      <div style="display:flex;justify-content:space-between;align-items:center">
-        <div><div style="font-weight:700">${v.nombre}</div><div style="font-size:12px;color:var(--muted);margin-top:2px">${v.tarjetaNombre} · Pagado ${v.fechaPago||''}</div></div>
-        <div style="text-align:right"><div style="font-weight:700;color:var(--ok)">${fmt(v.monto)}</div><div style="font-size:11px;color:var(--muted)">${v.fecha?new Date(v.fecha+'T12:00:00').toLocaleDateString('es-AR'):''}</div></div>
-      </div>
-    </div>`).join(''):'<div class="empty-state">No hay pagos en el historial.</div>';
+  const lista=document.getElementById('lista-venc-historial');
+  if(!pagados.length){lista.innerHTML='<div class="empty-state">No hay pagos en el historial.</div>';return;}
+  let html='';
+  pagados.forEach(v=>{
+    html+='<div class="card" style="padding:10px 14px;border-left:3px solid var(--ok);margin-bottom:8px">'+
+      '<div style="display:flex;justify-content:space-between;align-items:flex-start">'+
+        '<div>'+
+          '<div style="font-weight:700;font-size:14px">'+v.nombre+'</div>'+
+          '<div style="font-size:12px;color:var(--muted);margin-top:2px">'+v.tarjetaNombre+' · Pagado '+(v.fechaPago||'')+'</div>'+
+          '<div style="font-size:11px;color:var(--muted)">'+(v.fecha?new Date(v.fecha+'T12:00:00').toLocaleDateString('es-AR'):'')+'</div>'+
+        '</div>'+
+        '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px">'+
+          '<div style="font-weight:700;color:var(--ok)">'+fmt(v.montoOriginal||v.monto)+'</div>'+
+          '<button style="background:rgba(247,106,106,0.15);color:var(--danger);border:1px solid rgba(247,106,106,0.3);border-radius:6px;padding:5px 10px;font-size:12px;cursor:pointer" onclick="eliminarDelHistorial('+v.id+')">🗑️ Eliminar</button>'+
+        '</div>'+
+      '</div>'+
+    '</div>';
+  });
+  lista.innerHTML=html;
 }
 
 // ---- GASTOS ----
