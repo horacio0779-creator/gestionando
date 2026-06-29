@@ -258,20 +258,7 @@ input:focus,select:focus{border-color:var(--accent)}
       <div class="fondo-card"><div class="fondo-label">💰 10% este mes</div><div class="fondo-value" id="fondo-mes2">$0</div></div>
       <div class="fondo-card"><div class="fondo-label">🏦 10% acumulado</div><div class="fondo-value" id="fondo-total2">$0</div></div>
     </div>
-    <!-- INGRESOS EXTRA COLAPSABLE -->
-    <div style="background:var(--surface2);border-radius:12px;border:1px solid var(--border);margin-bottom:14px;overflow:hidden">
-      <div onclick="toggleIngresosExtra()" style="display:flex;justify-content:space-between;align-items:center;padding:13px 14px;cursor:pointer">
-        <div>
-          <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Ingresos extra del mes</div>
-          <div style="font-size:16px;font-weight:700;color:var(--ok)" id="ie-total-mini">$0</div>
-        </div>
-        <span id="ie-arrow" style="font-size:18px;color:var(--muted);transition:transform 0.2s">▶</span>
-      </div>
-      <div id="ie-detalle" style="display:none;border-top:1px solid var(--border);padding:10px 14px 4px">
-        <div id="lista-ingresos-extra"></div>
-      </div>
-    </div>
-    <div class="card">
+    <div class="card" style="margin-bottom:14px">
       <div class="card-nombre" style="margin-bottom:10px">➕ Agregar ingreso extra</div>
       <div class="form-group"><label>Concepto</label><input type="text" id="ie-concepto" placeholder="Ej: Uber, Informe dominio..."></div>
       <div class="form-group"><label>Monto total ($)</label><input type="number" id="ie-monto" placeholder="0" oninput="previewIngreso()"></div>
@@ -286,6 +273,20 @@ input:focus,select:focus{border-color:var(--accent)}
         </div>
       </div>
       <button class="btn btn-primary btn-full" onclick="agregarIngresoExtra()">Agregar ingreso</button>
+    </div>
+
+    <!-- INGRESOS EXTRA COLAPSABLE -->
+    <div style="background:var(--surface2);border-radius:12px;border:1px solid var(--border);margin-bottom:14px;overflow:hidden">
+      <div onclick="toggleIngresosExtra()" style="display:flex;justify-content:space-between;align-items:center;padding:13px 14px;cursor:pointer">
+        <div>
+          <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">Ingresos extra del mes</div>
+          <div style="font-size:16px;font-weight:700;color:var(--ok)" id="ie-total-mini">$0</div>
+        </div>
+        <span id="ie-arrow" style="font-size:18px;color:var(--muted);transition:transform 0.2s">▶</span>
+      </div>
+      <div id="ie-detalle" style="display:none;border-top:1px solid var(--border);padding:10px 14px 4px">
+        <div id="lista-ingresos-extra"></div>
+      </div>
     </div>
     <div class="divider"></div>
     <div class="section-title">Gastos del fondo 10%</div>
@@ -763,16 +764,17 @@ function renderIngresosExtra(){
   document.getElementById('fondo-total2').textContent=fmt(fondo.disponible);
   const items=data.ingresosExtra[ym]||[];
 
-  // Agrupar por concepto
+  // Agrupar por primera palabra del concepto
   const grupos={};
   items.forEach((ie,i)=>{
-    const key=ie.concepto.toLowerCase().trim();
-    if(!grupos[key]) grupos[key]={concepto:ie.concepto,monto:0,p90:0,p10:0,indices:[],count:0};
-    grupos[key].monto+=ie.monto;
-    grupos[key].p90+=ie.p90;
-    grupos[key].p10+=ie.p10;
-    grupos[key].indices.push(i);
-    grupos[key].count++;
+    const primeraP = ie.concepto.trim().split(' ')[0].toLowerCase();
+    if(!grupos[primeraP]) grupos[primeraP]={concepto:ie.concepto.trim().split(' ')[0],monto:0,p90:0,p10:0,indices:[],count:0,items:[]};
+    grupos[primeraP].monto+=ie.monto;
+    grupos[primeraP].p90+=ie.p90;
+    grupos[primeraP].p10+=ie.p10;
+    grupos[primeraP].indices.push(i);
+    grupos[primeraP].count++;
+    grupos[primeraP].items.push({...ie, originalIdx:i});
   });
 
   const totalIngresos=items.reduce((s,ie)=>s+ie.monto,0);
@@ -781,14 +783,16 @@ function renderIngresosExtra(){
 
   const grupos_html = Object.values(grupos).map((g,gi)=>{
     const uid = 'ie_grupo_'+gi;
-    const detalle = g.indices.map((idx,ii)=>{
-      const ie = items[idx];
-      return `<div style="display:flex;justify-content:space-between;font-size:12px;padding:5px 0;border-top:1px solid var(--border)">
-        <span style="color:var(--muted)">Ingreso ${ii+1}</span>
-        <span style="display:flex;gap:10px;align-items:center">
-          <span style="color:var(--text);font-weight:600">${fmt(ie.monto)}</span>
-          <span class="rec-del" style="font-size:14px" onclick="eliminarIngresoExtra('${ym}',${idx});renderIngresosExtra()">✕</span>
-        </span>
+    const detalle = g.items.map((ie,ii)=>{
+      return `<div style="padding:6px 0;border-top:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center;font-size:12px">
+          <span style="color:var(--text)">${ie.concepto}</span>
+          <span style="display:flex;gap:10px;align-items:center">
+            <span style="color:var(--ok);font-weight:700">${fmt(ie.monto)}</span>
+            <span class="rec-del" style="font-size:14px" onclick="eliminarIngresoExtra('${ym}',${ie.originalIdx});renderIngresosExtra()">✕</span>
+          </span>
+        </div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px">${ie.fecha||'Sin fecha'}</div>
       </div>`;
     }).join('');
     return `<div class="card" style="padding:10px 14px;margin-bottom:8px">
@@ -817,7 +821,7 @@ function agregarIngresoExtra(){
   if(!concepto||!monto){alert('Completá concepto y monto');return;}
   const ym=mesActual();
   if(!data.ingresosExtra[ym]) data.ingresosExtra[ym]=[];
-  data.ingresosExtra[ym].push({concepto,monto,p90:monto*0.9,p10:monto*0.1});
+  data.ingresosExtra[ym].push({concepto,monto,p90:monto*0.9,p10:monto*0.1,fecha:new Date().toLocaleDateString('es-AR')});
   save();renderAll();
   document.getElementById('ie-concepto').value='';document.getElementById('ie-monto').value='';
   document.getElementById('ie-prev-90').textContent='$0';document.getElementById('ie-prev-10').textContent='$0';
