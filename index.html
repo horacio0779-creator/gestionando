@@ -127,9 +127,9 @@ input:focus,select:focus{border-color:var(--accent)}
         <div style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:3px">💳 Tarjetas disponibles para usar</div>
         <div style="font-size:13px;font-weight:600;color:var(--ok)" id="tarj-disp-mini">—</div>
       </div>
-      <span id="tarj-disp-arrow" style="font-size:18px;color:var(--muted);transition:transform 0.2s">▼</span>
+      <span id="tarj-disp-arrow" style="font-size:18px;color:var(--muted);transition:transform 0.2s;transform:rotate(180deg)">▼</span>
     </div>
-    <div id="tarj-disp-detalle" style="display:none;border-top:1px solid var(--border);padding:10px 14px 14px">
+    <div id="tarj-disp-detalle" style="display:block;border-top:1px solid var(--border);padding:10px 14px 14px">
       <div id="tarj-disp-lista"></div>
     </div>
   </div>
@@ -482,51 +482,6 @@ input:focus,select:focus{border-color:var(--accent)}
   <div class="divider"></div>
   <div class="section-title" style="color:var(--danger)">Zona peligrosa</div>
   <button class="btn btn-danger btn-full" onclick="borrarTodo()">🗑️ Borrar todos los datos</button>
-</div>
-
-<!-- MODAL EDITAR TARJETA -->
-<div id="modal-tarjeta" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;padding:20px;overflow-y:auto">
-  <div style="background:var(--surface);border-radius:16px;padding:20px;max-width:400px;margin:40px auto">
-    <div style="font-size:16px;font-weight:700;margin-bottom:16px">✏️ Editar tarjeta</div>
-    <div class="form-group"><label>Nombre</label><input type="text" id="mt-nombre"></div>
-    <div class="form-row">
-      <div class="form-group"><label>Saldo usado ($)</label><input type="number" id="mt-saldo"></div>
-      <div class="form-group"><label>Cupo total ($)</label><input type="number" id="mt-cupo"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>Fecha de cierre</label><input type="date" id="mt-cierre"></div>
-      <div class="form-group"><label>Vencimiento pago</label><input type="date" id="mt-vence"></div>
-    </div>
-    <div class="form-group"><label>Tasa mensual %</label><input type="number" id="mt-tasa"></div>
-    <input type="hidden" id="mt-idx">
-    <div style="display:flex;gap:8px;margin-top:4px">
-      <button class="btn btn-primary" onclick="guardarEdicionTarjeta()">Guardar</button>
-      <button class="btn btn-danger" onclick="cerrarModalTarjeta()">Cancelar</button>
-    </div>
-  </div>
-</div>
-
-<!-- MODAL PAGO CON TARJETA -->
-<div id="modal-pago-venc" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:1000;padding:20px;overflow-y:auto">
-  <div style="background:var(--surface);border-radius:16px;padding:20px;max-width:400px;margin:40px auto">
-    <div style="font-size:16px;font-weight:700;margin-bottom:4px">💳 Pago total</div>
-    <div style="font-size:13px;color:var(--muted);margin-bottom:16px" id="mpv-nombre"></div>
-    <div style="background:rgba(247,106,106,0.1);border:1px solid rgba(247,106,106,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between">
-      <span style="color:var(--muted);font-size:13px">Monto a pagar</span>
-      <span style="font-weight:700;color:var(--danger)" id="mpv-monto"></span>
-    </div>
-    <div class="form-group">
-      <label>¿Con qué pagás?</label>
-      <select id="mpv-sel" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px">
-        <option value="">Efectivo / Débito</option>
-      </select>
-    </div>
-    <input type="hidden" id="mpv-id">
-    <div style="display:flex;gap:8px;margin-top:4px">
-      <button class="btn btn-ok" onclick="confirmarPagoVencModal()">✓ Confirmar pago</button>
-      <button class="btn btn-danger" onclick="cerrarModalPago()">Cancelar</button>
-    </div>
-  </div>
 </div>
 
 <script>
@@ -1701,6 +1656,7 @@ function toggleTarjetasDisp(){
   const abierto=det.style.display!=='none';
   det.style.display=abierto?'none':'block';
   arr.style.transform=abierto?'':'rotate(180deg)';
+  if(!abierto) renderTarjetasDisponibles();
 }
 
 function renderTarjetasDisponibles(){
@@ -1709,10 +1665,10 @@ function renderTarjetasDisponibles(){
     if(!t.cierre) return false;
     const fc=new Date(t.cierre+'T12:00:00');
     const dias=Math.ceil((fc-hoyD)/86400000);
-    return dias>=25;
+    return dias>=20;
   });
   const mini=document.getElementById('tarj-disp-mini');
-  if(mini) mini.textContent=aptas.length?aptas.length+' tarjeta'+(aptas.length!==1?'s':'')+' apta'+(aptas.length!==1?'s':''):'Sin tarjetas con 25+ días para el cierre';
+  if(mini) mini.textContent=aptas.length?aptas.length+' tarjeta'+(aptas.length!==1?'s':'')+' apta'+(aptas.length!==1?'s':''):'Sin tarjetas con 20+ días para el cierre';
   const lista=document.getElementById('tarj-disp-lista');
   if(!lista) return;
   if(!aptas.length){
@@ -1740,6 +1696,8 @@ function renderAll(){
   verificarCambioDeMes();
   renderResumen();
   renderHistorialMeses();
+  renderVencimientosMini();
+  renderTarjetasDisponibles();
   renderExtracciones();
   renderIngresosExtra();
   renderCuotas();
@@ -1753,5 +1711,52 @@ function renderAll(){
 
 renderAll();
 </script>
+<!-- MODAL EDITAR TARJETA -->
+<div id="modal-tarjeta" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:9999;padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch">
+  <div style="background:var(--surface);border-radius:16px;padding:20px;max-width:400px;margin:40px auto">
+    <div style="font-size:16px;font-weight:700;margin-bottom:16px">✏️ Editar tarjeta</div>
+    <div class="form-group"><label>Nombre</label><input type="text" id="mt-nombre"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Saldo usado ($)</label><input type="number" id="mt-saldo"></div>
+      <div class="form-group"><label>Cupo total ($)</label><input type="number" id="mt-cupo"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>Fecha de cierre</label><input type="date" id="mt-cierre"></div>
+      <div class="form-group"><label>Vencimiento pago</label><input type="date" id="mt-vence"></div>
+    </div>
+    <div class="form-group"><label>Tasa mensual %</label><input type="number" id="mt-tasa"></div>
+    <input type="hidden" id="mt-idx">
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-primary" onclick="guardarEdicionTarjeta()">Guardar</button>
+      <button class="btn btn-danger" onclick="cerrarModalTarjeta()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- MODAL PAGO CON TARJETA -->
+<div id="modal-pago-venc" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:9999;padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch">
+  <div style="background:var(--surface);border-radius:16px;padding:20px;max-width:400px;margin:40px auto">
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px">💳 Pago total</div>
+    <div style="font-size:13px;color:var(--muted);margin-bottom:16px" id="mpv-nombre"></div>
+    <div style="background:rgba(247,106,106,0.1);border:1px solid rgba(247,106,106,0.3);border-radius:8px;padding:10px 14px;margin-bottom:14px;display:flex;justify-content:space-between">
+      <span style="color:var(--muted);font-size:13px">Monto a pagar</span>
+      <span style="font-weight:700;color:var(--danger)" id="mpv-monto"></span>
+    </div>
+    <div class="form-group">
+      <label>¿Con qué pagás?</label>
+      <select id="mpv-sel" style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-size:14px">
+        <option value="">Efectivo / Débito</option>
+      </select>
+    </div>
+    <input type="hidden" id="mpv-id">
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-ok" onclick="confirmarPagoVencModal()">✓ Confirmar pago</button>
+      <button class="btn btn-danger" onclick="cerrarModalPago()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+
 </body>
 </html>
