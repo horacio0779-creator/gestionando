@@ -138,7 +138,8 @@ input:focus,select:focus{border-color:var(--accent)}
     <div style="font-size:15px;font-weight:700;margin-bottom:6px">Recaudación del mes</div>
     <div style="font-size:36px;font-weight:700;color:var(--danger);margin-bottom:2px;letter-spacing:-1px" id="barra-falta-monto">$0</div>
     <div style="font-size:12px;color:var(--muted);margin-bottom:2px">falta recaudar</div>
-    <div style="font-size:18px;font-weight:700;color:var(--ok);margin-bottom:10px">Recaudado: <span id="barra-recaudado-grande">$0</span></div>
+    <div style="font-size:18px;font-weight:700;color:var(--ok);margin-bottom:2px">Disponible: <span id="barra-recaudado-grande">$0</span></div>
+    <div style="font-size:11px;color:var(--muted);margin-bottom:10px" id="barra-rec-detalle"></div>
     <div class="barra-bg"><div class="barra-fill" id="barra-fill" style="width:0%"></div></div>
     <div class="barra-pct"><span id="barra-pct-txt">0%</span><span id="barra-meta-txt">Meta: $0</span></div>
   </div>
@@ -369,8 +370,20 @@ input:focus,select:focus{border-color:var(--accent)}
       <div id="lista-venc-pendientes"></div>
       <div class="card">
         <div class="card-nombre" style="margin-bottom:12px">➕ Agregar vencimiento</div>
-        <div class="form-group"><label>Nombre</label><input type="text" id="vn-nombre" placeholder="Ej: Seguro auto, Luz..."></div>
-        <div class="form-group"><label>Forma de pago</label><select id="vn-tarjeta"></select></div>
+        <div class="form-group"><label>Nombre</label><input type="text" id="vn-nombre" placeholder="Ej: Luz, Internet, Visa..."></div>
+        <div class="form-group">
+          <label>Tipo</label>
+          <select id="vn-tipo" onchange="toggleTipoVenc()">
+            <option value="servicio">🧾 Servicio (luz, internet, monotributo...)</option>
+            <option value="tarjeta">💳 Tarjeta de crédito</option>
+          </select>
+        </div>
+        <div id="vn-form-servicio">
+          <div class="form-group"><label>Forma de pago</label><select id="vn-tarjeta"></select></div>
+        </div>
+        <div id="vn-form-tarjeta" style="display:none">
+          <div class="form-group"><label>¿Cuál tarjeta vas a pagar?</label><select id="vn-tarjeta-idx"></select></div>
+        </div>
         <div class="form-row">
           <div class="form-group"><label>Monto ($)</label><input type="number" id="vn-monto" placeholder="0"></div>
           <div class="form-group"><label>Fecha vencimiento</label><input type="date" id="vn-fecha"></div>
@@ -422,7 +435,17 @@ input:focus,select:focus{border-color:var(--accent)}
 
   <!-- TARJETAS -->
   <div id="op-tarjetas" class="op-panel" style="display:none">
-    <div id="lista-tarjetas"></div>
+    <!-- RESUMEN POR TARJETA COLAPSABLE -->
+  <div style="background:var(--surface);border-radius:12px;border:1px solid var(--border);margin-bottom:14px;overflow:hidden">
+    <div onclick="toggleResumenTarjeta()" style="display:flex;justify-content:space-between;align-items:center;padding:12px 14px;cursor:pointer">
+      <span style="font-size:12px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">📊 Resumen mensual por tarjeta</span>
+      <span id="rst-arrow" style="font-size:16px;color:var(--muted)">▶</span>
+    </div>
+    <div id="rst-detalle" style="display:none;border-top:1px solid var(--border);padding:10px 14px 14px">
+      <div id="resumen-por-tarjeta"></div>
+    </div>
+  </div>
+  <div id="lista-tarjetas"></div>
     <div class="card">
       <div class="card-nombre" style="margin-bottom:10px">➕ Nueva tarjeta</div>
       <div class="form-group"><label>Nombre</label><input type="text" id="t-nombre" placeholder="Ej: Visa Galicia"></div>
@@ -550,6 +573,19 @@ function migrarFechasYM(){
   if(cambios) save();
 }
 migrarFechasYM();
+// Migrar vencimientos sin tipo
+(data.vencimientos||[]).forEach(v=>{
+  if(v.tipo===undefined){
+    // Si tiene tarjetaIdx y la tarjeta existe, asumir que es pago de tarjeta
+    // sino es servicio
+    v.tipo='servicio';
+    v.esTarjeta=false;
+  }
+});
+// Limpiar items negativos de recaudado (pagos viejos mal guardados)
+Object.keys(data.recaudado||{}).forEach(ym=>{
+  data.recaudado[ym]=(data.recaudado[ym]||[]).filter(r=>r.monto>0);
+});
 
 function mesKey(y,m){return `${y}-${String(m+1).padStart(2,'0')}`;}
 function mesActual(){return mesKey(mesVista.y,mesVista.m);}
@@ -610,10 +646,11 @@ function calcFondo(){
 function calcTotalMes(ym){
   const fijos=data.fijos.reduce((s,f)=>s+f.monto,0);
   const imps=(data.imprevistos[ym]||[]).reduce((s,i)=>s+i.monto,0);
-  const tarjs=data.tarjetas.reduce((s,t)=>s+t.saldo,0);
   const costoExt=(data.extracciones[ym]||[]).reduce((s,e)=>s+e.costo,0);
   const arrastre=data.arrastre?.monto||0;
-  return{fijos,imps,tarjs,costoExt,arrastre,total:fijos+imps+tarjs+costoExt+arrastre};
+  // tarjs es solo para mostrar en desglose, NO suma al total
+  const tarjs=data.tarjetas.reduce((s,t)=>s+t.saldo,0);
+  return{fijos,imps,tarjs,costoExt,arrastre,total:fijos+imps+costoExt+arrastre};
 }
 
 function parseFechaAR(fechaStr){
@@ -624,10 +661,27 @@ function parseFechaAR(fechaStr){
 }
 
 function calcRecaudado(ym){
-  const manual=(data.recaudado[ym]||[]).reduce((s,r)=>s+r.monto,0);
+  // Recaudado BRUTO: lo que entró (extracciones + ingresos + manual)
+  const manual=(data.recaudado[ym]||[]).filter(r=>!r.esVencimiento).reduce((s,r)=>s+r.monto,0);
   const extra90=(data.ingresosExtra[ym]||[]).reduce((s,i)=>s+i.p90,0);
   const extNeto=(data.extracciones[ym]||[]).reduce((s,e)=>s+e.neto,0);
   return manual+extra90+extNeto;
+}
+
+function calcPagosVencMes(ym){
+  // Total pagado en vencimientos este mes
+  const partsYM=ym.split('-');
+  const ymAnio=parseInt(partsYM[0]);
+  const ymMes=parseInt(partsYM[1]);
+  let total=0;
+  (data.vencimientos||[]).forEach(v=>{
+    if(v.pagos&&v.pagos.length){
+      v.pagos.forEach(p=>{
+        if(p.fechaYM===ym) total+=p.monto;
+      });
+    }
+  });
+  return total;
 }
 
 // ---- RESUMEN ----
@@ -636,15 +690,30 @@ function renderResumen(){
   const meses=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
   document.getElementById('mes-label').textContent=`${meses[mesVista.m]} ${mesVista.y}`;
   const c=calcTotalMes(ym);
-  const recaudado=calcRecaudado(ym);
-  const falta=Math.max(0,c.total-recaudado);
+  const recaudado=calcRecaudado(ym);  // bruto sin pagos
+  const falta=Math.max(0,c.total-recaudado);  // rojo: no cambia con pagos
   const pct=c.total>0?Math.min(100,recaudado/c.total*100):0;
   const fondo=calcFondo();
+  const pagosVenc=calcPagosVencMes(ym);
+  const recaudadoNeto=Math.max(0,recaudado-pagosVenc);
   document.getElementById('barra-fill').style.width=pct+'%';
-  document.getElementById('barra-recaudado-grande').textContent=fmt(recaudado);
+  document.getElementById('barra-recaudado-grande').textContent=fmt(recaudadoNeto);
+  const detElem=document.getElementById('barra-rec-detalle');
+  if(detElem){
+    if(pagosVenc>0){
+      detElem.textContent='Ingresado: '+fmt(recaudado)+' — Pagos: -'+fmt(pagosVenc);
+    } else {
+      detElem.textContent='';
+    }
+  }
   document.getElementById('barra-falta-monto').textContent=fmt(falta);
   document.getElementById('barra-pct-txt').textContent=Math.round(pct)+'% recaudado';
   document.getElementById('barra-meta-txt').textContent='Meta: '+fmt(c.total);
+  // Agregar subtexto de pagos si hay
+  const recElem=document.getElementById('barra-recaudado-grande');
+  if(pagosVenc>0 && recElem){
+    recElem.title='Bruto: '+fmt(recaudado)+' - Pagos: '+fmt(pagosVenc);
+  }
   document.getElementById('fondo-mes').textContent=fmt(fondo.mesMonto);
   document.getElementById('fondo-total').textContent=fmt(fondo.disponible);
   document.getElementById('res-total').textContent=fmt(c.total);
@@ -733,15 +802,41 @@ function toggleVenc(){
 
 function renderVencimientosMini(){
   const hoyD=new Date();
+
+  // Vencimientos manuales pendientes
   const pendientes=data.vencimientos.filter(v=>!v.pagado);
-  const totalVenc=pendientes.reduce((s,v)=>{
+
+  // Agregar tarjetas que tienen fecha de vencimiento como vencimientos automáticos
+  const tarjetasConVence=data.tarjetas.filter(t=>t.vence).map(t=>{
+    const fv=new Date(t.vence+'T12:00:00');
+    const pagadoHasta=0; // saldo actual ya refleja pagos
+    return {
+      id:'tarj_'+t.nombre,
+      nombre:'💳 '+t.nombre,
+      esTarjeta:true,
+      tarjetaIdx:data.tarjetas.indexOf(t),
+      tarjetaNombre:t.nombre,
+      monto:t.saldo,
+      montoOriginal:t.saldo,
+      fecha:t.vence,
+      pagos:[],
+      pagado:false,
+      _esTarjetaAuto:true,
+      _tarjeta:t
+    };
+  }).filter(v=>v.monto>0);
+
+  const todos=[...pendientes, ...tarjetasConVence];
+  const totalVenc=todos.reduce((s,v)=>{
     const orig=v.montoOriginal||v.monto;
     const pag=v.pagos?v.pagos.reduce((a,p)=>a+p.monto,0):0;
     return s+Math.max(0,orig-pag);
   },0);
+
   document.getElementById('venc-total-mini').textContent=fmt(totalVenc);
-  document.getElementById('venc-cant-mini').textContent=pendientes.length+' pendiente'+(pendientes.length!==1?'s':'');
-  const ordenados=[...pendientes].sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
+  document.getElementById('venc-cant-mini').textContent=todos.length+' pendiente'+(todos.length!==1?'s':'');
+
+  const ordenados=[...todos].sort((a,b)=>new Date(a.fecha)-new Date(b.fecha));
   document.getElementById('venc-lista-mini').innerHTML=ordenados.length?ordenados.map(v=>{
     const fv=new Date(v.fecha+'T12:00:00');
     const dias=Math.ceil((fv-hoyD)/86400000);
@@ -752,12 +847,47 @@ function renderVencimientosMini(){
     const falta=Math.max(0,montoOrig-pagado);
     const pct=montoOrig>0?Math.min(100,pagado/montoOrig*100):0;
     const tienePagos=v.pagos&&v.pagos.length>0;
+
+    // Si es tarjeta automática, mostrar diferente
+    if(v._esTarjetaAuto){
+      const t=v._tarjeta;
+      const disp=disponibleTarjeta(t);
+      let cierreHtml='';
+      if(t.cierre){
+        const fc=new Date(t.cierre+'T12:00:00');
+        const dc=Math.ceil((fc-hoyD)/86400000);
+        const cc=dc<=3?'var(--danger)':dc<=10?'var(--accent2)':'var(--ok)';
+        cierreHtml=`<div style="display:flex;justify-content:space-between;align-items:center;background:rgba(124,106,247,0.08);border-radius:8px;padding:6px 10px;margin-top:6px">
+          <span style="font-size:11px;color:var(--muted)">⏱ Cierre tarjeta</span>
+          <span style="font-size:14px;font-weight:700;color:${cc}">${dc>0?dc+'d':'HOY'} · ${fc.toLocaleDateString('es-AR')}</span>
+        </div>`;
+      }
+      return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:700;font-size:13px">${v.nombre}</div>
+            <div style="font-size:11px;color:${color};margin-top:1px">${diasTxt} vencimiento · Saldo: ${fmt(t.saldo)}</div>
+            <div style="font-size:11px;color:var(--ok)">Disponible: ${fmt(disp)}</div>
+          </div>
+          <div style="text-align:right">
+            <div style="font-weight:700;color:var(--danger)">${fmt(t.saldo)}</div>
+            <div style="font-size:11px;color:var(--muted)">a pagar</div>
+          </div>
+        </div>
+        ${cierreHtml}
+        <div style="display:flex;gap:6px;margin-top:8px">
+          <input type="number" id="pago_tarj_${t.nombre.replace(/ /g,'_')}" placeholder="Ingresá el monto $" style="flex:1;padding:8px 10px;font-size:13px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text)">
+          <button onclick="pagarTarjetaMini('${t.nombre.replace(/ /g,'_')}',${data.tarjetas.indexOf(t)})" style="padding:8px 12px;background:rgba(106,247,160,0.15);color:var(--ok);border:1px solid rgba(106,247,160,0.3);border-radius:8px;font-weight:600;font-size:12px;cursor:pointer">✓ Pagar</button>
+        </div>
+        <div id="info_tarj_${t.nombre.replace(/ /g,'_')}" style="display:none;font-size:12px;color:var(--ok);margin-top:6px;padding:6px 8px;background:rgba(106,247,160,0.08);border-radius:6px"></div>
+      </div>`;
+    }
+
     return `<div style="padding:10px 0;border-bottom:1px solid var(--border)">
       <div onclick="toggleVencMini(${v.id})" style="display:flex;justify-content:space-between;align-items:center;cursor:pointer">
         <div>
           <div style="font-weight:700;font-size:13px">${v.nombre}</div>
           <div style="font-size:11px;color:${color};margin-top:1px">${diasTxt} · ${v.tarjetaNombre}</div>
-          ${v.cierre?`<div style="font-size:11px;color:var(--accent2);margin-top:1px">⏱ Cierre: ${new Date(v.cierre+'T12:00:00').toLocaleDateString('es-AR')} · ${Math.ceil((new Date(v.cierre+'T12:00:00')-hoyD)/86400000)>0?'en '+Math.ceil((new Date(v.cierre+'T12:00:00')-hoyD)/86400000)+'d':'HOY'}</div>`:''}
           ${tienePagos?`<div style="font-size:11px;color:var(--ok)">Pagado: ${fmt(pagado)}</div>`:''}
         </div>
         <div style="text-align:right">
@@ -777,19 +907,11 @@ function renderVencimientosMini(){
             <div style="font-weight:700;font-size:13px;color:${falta>0?'var(--danger)':'var(--ok)'}">${fmt(falta)}</div>
           </div>
         </div>
-        ${v.cierre?(()=>{const fc=new Date(v.cierre+'T12:00:00');const dc=Math.ceil((fc-hoyD)/86400000);return `<div style="background:rgba(247,194,106,0.1);border:1px solid rgba(247,194,106,0.3);border-radius:8px;padding:8px 10px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:10px;color:var(--accent2);font-weight:600;text-transform:uppercase;letter-spacing:0.3px">⏱ Fecha de cierre</div><div style="font-size:13px;font-weight:700;color:var(--accent2);margin-top:2px">${fc.toLocaleDateString('es-AR')}</div></div><div style="text-align:right"><div style="font-size:18px;font-weight:700;color:${dc<=3?'var(--danger)':'var(--accent2)'}">${dc>0?dc+'d':'HOY'}</div><div style="font-size:10px;color:var(--muted)">para el cierre</div></div></div>`;})():''}
-        ${falta>0?`<div style="background:rgba(247,106,106,0.1);border:1px solid rgba(247,106,106,0.3);border-radius:8px;padding:8px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center">
-          <div>
-            <div style="font-size:10px;color:var(--danger);text-transform:uppercase;font-weight:600">Falta pagar</div>
-            <div style="font-size:18px;font-weight:700;color:var(--danger)">${fmt(falta)}</div>
-          </div>
-          ${v.cierre?(()=>{const fc=new Date(v.cierre+'T12:00:00');const dc=Math.ceil((fc-hoyD)/86400000);return '<div style="text-align:right"><div style="font-size:10px;color:var(--accent2);text-transform:uppercase;font-weight:600">Cierre</div><div style="font-size:15px;font-weight:700;color:'+(dc<=3?'var(--danger)':'var(--accent2)')+'">'+dc+'d</div><div style="font-size:10px;color:var(--muted)">'+fc.toLocaleDateString('es-AR')+'</div></div>';})():''}
-        </div>`:''}
+        ${v.cierre?(()=>{const fc=new Date(v.cierre+'T12:00:00');const dc=Math.ceil((fc-hoyD)/86400000);return '<div style="background:rgba(247,194,106,0.1);border:1px solid rgba(247,194,106,0.3);border-radius:8px;padding:8px 12px;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center"><div><div style="font-size:10px;color:var(--accent2);text-transform:uppercase;font-weight:600">⏱ Cierre</div><div style="font-size:13px;font-weight:700;color:var(--accent2);margin-top:2px">'+fc.toLocaleDateString('es-AR')+'</div></div><div style="text-align:right"><div style="font-size:24px;font-weight:700;color:'+(dc<=3?'var(--danger)':'var(--accent2)')+'">'+( dc>0?dc+'d':'HOY')+'</div></div></div>';})():''}
         <div style="display:flex;gap:6px;margin-bottom:8px">
-          <input type="number" id="vm_input_${v.id}" placeholder="Monto parcial $" style="flex:1;padding:8px 10px;font-size:13px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text)">
+          <input type="number" id="vm_input_${v.id}" placeholder="Pago parcial $" style="flex:1;padding:8px 10px;font-size:13px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text)">
           <button onclick="agregarPagoVencConMonto(${v.id}, document.getElementById('vm_input_${v.id}').value)" style="padding:8px 12px;background:rgba(247,194,106,0.15);color:var(--accent2);border:1px solid rgba(247,194,106,0.3);border-radius:8px;font-weight:600;font-size:12px;cursor:pointer">Parcial</button>
         </div>
-
         <div style="display:flex;gap:6px">
           <button onclick="abrirModalPagoVenc(${v.id})" style="flex:1;padding:9px;background:rgba(106,247,160,0.15);color:var(--ok);border:1px solid rgba(106,247,160,0.3);border-radius:8px;font-weight:600;font-size:12px;cursor:pointer">✓ Pago total</button>
         </div>
@@ -797,6 +919,33 @@ function renderVencimientosMini(){
     </div>`;
   }).join(''):'<div style="font-size:13px;color:var(--muted);padding:8px 0">Sin vencimientos pendientes.</div>';
 }
+
+function pagarTarjetaMini(nombreKey, idx){
+  const input=document.getElementById('pago_tarj_'+nombreKey);
+  const monto=parseFloat(input?.value)||0;
+  if(!monto||monto<=0){alert('Ingresá un monto válido');return;}
+  const t=data.tarjetas[idx];
+  t.saldo=Math.max(0,t.saldo-monto);
+  save();
+  // Mostrar feedback con días para el cierre
+  const infoEl=document.getElementById('info_tarj_'+nombreKey);
+  if(infoEl){
+    const nuevoSaldo=t.saldo;
+    const nuevoDisp=disponibleTarjeta(t);
+    let cierreHtml='';
+    if(t.cierre){
+      const hoyD=new Date();
+      const fc=new Date(t.cierre+'T12:00:00');
+      const dias=Math.ceil((fc-hoyD)/86400000);
+      const color=dias<=3?'var(--danger)':dias<=10?'var(--accent2)':'var(--ok)';
+      cierreHtml=`<span style="color:${color}"> · Cierre en ${dias}d</span>`;
+    }
+    infoEl.innerHTML=`✓ Pagaste ${fmt(monto)} · Saldo: <b>${fmt(nuevoSaldo)}</b> · Disp: <b style="color:var(--ok)">${fmt(nuevoDisp)}</b>${cierreHtml}`;
+    infoEl.style.display='block';
+  }
+  renderAll();
+}
+
 
 function toggleVencMini(id){
   const el=document.getElementById('vm_'+id);
@@ -1053,11 +1202,30 @@ function mostrarHistorial(){
   renderHistorial();
 }
 
+function toggleTipoVenc(){
+  const tipo=document.getElementById('vn-tipo').value;
+  document.getElementById('vn-form-servicio').style.display=tipo==='servicio'?'block':'none';
+  document.getElementById('vn-form-tarjeta').style.display=tipo==='tarjeta'?'block':'none';
+}
+
 function poblarSelectVenc(){
-  const sel=document.getElementById('vn-tarjeta');if(!sel)return;
-  let html='<option value="efectivo">Efectivo</option><option value="debito">Débito / Cuenta bancaria</option>';
-  if(data.tarjetas.length){html+='<optgroup label="Tarjetas de crédito">'+data.tarjetas.map((t,i)=>`<option value="tc_${i}">${t.nombre} (disp: ${fmt(disponibleTarjeta(t))})</option>`).join('')+'</optgroup>';}
-  sel.innerHTML=html;
+  const sel=document.getElementById('vn-tarjeta');
+  if(sel){
+    let html='<option value="efectivo">Efectivo</option><option value="debito">Débito / Cuenta bancaria</option>';
+    if(data.tarjetas.length){
+      html+='<optgroup label="Tarjetas de crédito">';
+      data.tarjetas.forEach((t,i)=>{html+=`<option value="tc_${i}">${t.nombre} (disp: ${fmt(disponibleTarjeta(t))})</option>`;});
+      html+='</optgroup>';
+    }
+    sel.innerHTML=html;
+  }
+  // También poblar selector de tarjeta para tipo "tarjeta"
+  const selT=document.getElementById('vn-tarjeta-idx');
+  if(selT){
+    selT.innerHTML=data.tarjetas.length
+      ?data.tarjetas.map((t,i)=>`<option value="${i}">${t.nombre} — Disponible: ${fmt(disponibleTarjeta(t))}</option>`).join('')
+      :'<option value="">Sin tarjetas cargadas</option>';
+  }
 }
 
 function agregarVencimiento(){
@@ -1105,18 +1273,22 @@ function confirmarPagoVencModal(){
   const montoOrig=v.montoOriginal||v.monto;
   const pagadoHasta=v.pagos?v.pagos.reduce((s,p)=>s+p.monto,0):0;
   const faltaPagar=Math.max(0,montoOrig-pagadoHasta);
-  if(ti!==null&&!isNaN(ti)&&data.tarjetas[ti]){
-    // Pago con tarjeta: resta del disponible de la tarjeta
-    data.tarjetas[ti].saldo+=faltaPagar;
-  } else {
-    // Pago efectivo/débito: resta del recaudado del mes
-    const ym=mesActual();
-    if(!data.recaudado[ym]) data.recaudado[ym]=[];
-    data.recaudado[ym].push({concepto:'📤 Pago: '+v.nombre,monto:-faltaPagar,esVencimiento:true});
-  }
-  if(!v.pagos) v.pagos=[];
   const hoyT=new Date();
   const hoyYM=hoyT.getFullYear()+'-'+String(hoyT.getMonth()+1).padStart(2,'0');
+
+  if(v.esTarjeta){
+    // Es pago de tarjeta de crédito: BAJA saldo (SUBE disponible)
+    const idx=v.tarjetaIdx;
+    if(idx!==null&&idx!==undefined&&data.tarjetas[idx]){
+      data.tarjetas[idx].saldo=Math.max(0,data.tarjetas[idx].saldo-faltaPagar);
+    }
+  } else if(ti!==null&&!isNaN(ti)&&data.tarjetas[ti]){
+    // Servicio pagado con tarjeta: SUBE saldo (BAJA disponible)
+    data.tarjetas[ti].saldo+=faltaPagar;
+  }
+  // Servicios con efectivo/débito no tocan tarjetas
+
+  if(!v.pagos) v.pagos=[];
   v.pagos.push({monto:faltaPagar,fecha:hoyT.toLocaleDateString('es-AR'),fechaYM:hoyYM});
   v.pagado=true;
   v.fechaPago=hoyT.toLocaleDateString('es-AR');
@@ -1138,12 +1310,8 @@ function pagarVencimiento(id){
   // Solo afectar tarjeta si tiene tarjetaIdx configurado
   if(v.tarjetaIdx!==null&&v.tarjetaIdx!==undefined&&data.tarjetas[v.tarjetaIdx]){
     data.tarjetas[v.tarjetaIdx].saldo+=faltaPagar;
-  } else {
-    // Sin tarjeta: restar del recaudado del mes
-    const hoyYM2=new Date().getFullYear()+'-'+String(new Date().getMonth()+1).padStart(2,'0');
-    if(!data.recaudado[hoyYM2]) data.recaudado[hoyYM2]=[];
-    data.recaudado[hoyYM2].push({concepto:'📤 Pago: '+v.nombre,monto:-faltaPagar,esVencimiento:true});
   }
+  // Los pagos NO afectan el recaudado del mes
   const hoyPagoTotal=new Date();
   const hoyYM=hoyPagoTotal.getFullYear()+'-'+String(hoyPagoTotal.getMonth()+1).padStart(2,'0');
   if(faltaPagar>0){
@@ -1156,18 +1324,58 @@ function pagarVencimiento(id){
   save();renderAll();
 }
 
+function editarMontoVenc(id){
+  abrirModalEditarVenc(id);
+}
+
 function editarVencimiento(id){
-  const v=data.vencimientos.find(x=>x.id===id);if(!v)return;
-  const nuevoNombre=prompt(`Nombre:`,v.nombre);if(nuevoNombre===null)return;
-  const nuevoMonto=prompt(`Monto total ($):`,v.montoOriginal||v.monto);if(nuevoMonto===null)return;
-  const nuevaFecha=prompt(`Fecha vencimiento (YYYY-MM-DD):`,v.fecha);if(nuevaFecha===null)return;
-  const nuevoCierre=prompt(`Fecha de cierre (YYYY-MM-DD, dejar vacío si no aplica):`,v.cierre||'');
-  v.nombre=nuevoNombre||v.nombre;
-  v.montoOriginal=parseFloat(nuevoMonto)||v.montoOriginal||v.monto;
+  abrirModalEditarVenc(id);
+}
+
+function abrirModalEditarVenc(id){
+  const v=data.vencimientos.find(x=>x.id===id);
+  if(!v) return;
+  document.getElementById('mev-id').value=id;
+  document.getElementById('mev-nombre').value=v.nombre||'';
+  document.getElementById('mev-monto').value=v.montoOriginal||v.monto||0;
+  document.getElementById('mev-fecha').value=v.fecha||'';
+  document.getElementById('mev-cierre').value=v.cierre||'';
+  document.getElementById('mev-tipo').value=v.esTarjeta?'tarjeta':'servicio';
+  // Poblar selector de tarjeta
+  const selT=document.getElementById('mev-tarjeta-idx');
+  selT.innerHTML=data.tarjetas.map((t,i)=>`<option value="${i}"${v.tarjetaIdx===i?' selected':''}>${t.nombre}</option>`).join('');
+  // Mostrar u ocultar selector según tipo
+  toggleTipoEditVenc();
+  document.getElementById('modal-editar-venc').style.display='block';
+}
+
+function toggleTipoEditVenc(){
+  const tipo=document.getElementById('mev-tipo').value;
+  document.getElementById('mev-form-tarjeta').style.display=tipo==='tarjeta'?'block':'none';
+}
+
+function guardarEdicionVenc(){
+  const id=parseInt(document.getElementById('mev-id').value);
+  const v=data.vencimientos.find(x=>x.id===id);
+  if(!v) return;
+  v.nombre=document.getElementById('mev-nombre').value.trim()||v.nombre;
+  v.montoOriginal=parseFloat(document.getElementById('mev-monto').value)||v.montoOriginal;
   v.monto=v.montoOriginal;
-  v.fecha=nuevaFecha||v.fecha;
-  v.cierre=nuevoCierre||null;
+  v.fecha=document.getElementById('mev-fecha').value||v.fecha;
+  v.cierre=document.getElementById('mev-cierre').value||null;
+  const tipo=document.getElementById('mev-tipo').value;
+  v.tipo=tipo;
+  v.esTarjeta=tipo==='tarjeta';
+  if(tipo==='tarjeta'){
+    const ti=parseInt(document.getElementById('mev-tarjeta-idx').value);
+    if(!isNaN(ti)){v.tarjetaIdx=ti;v.tarjetaNombre=data.tarjetas[ti].nombre;}
+  }
+  document.getElementById('modal-editar-venc').style.display='none';
   save();renderAll();
+}
+
+function cerrarModalEditarVenc(){
+  document.getElementById('modal-editar-venc').style.display='none';
 }
 
 function eliminarDelHistorial(id){
@@ -1244,11 +1452,11 @@ function renderVencimientosOp(){
           <button class="btn btn-warn" style="flex:none;padding:8px 12px" onclick="agregarPagoVenc(${v.id})">Parcial</button>
         </div>
 
-        <div class="card-actions">
-          <button class="btn btn-ok" onclick="abrirModalPagoVenc(${v.id})">✓ Pago total</button>
-          <button class="btn btn-warn" onclick="editarVencimiento(${v.id})">Editar</button>
-          <button class="btn btn-danger" onclick="eliminarVencimiento(${v.id})">✕</button>
-        </div>
+        <button class="btn btn-ok btn-full" style="margin-bottom:6px" onclick="abrirModalPagoVenc(${v.id})">✓ Pago total</button>
+      </div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button class="btn btn-warn" style="flex:1" onclick="abrirModalEditarVenc(${v.id})">✏️ Editar</button>
+        <button class="btn btn-danger" style="flex:none;padding:9px 14px" onclick="eliminarVencimiento(${v.id})">✕</button>
       </div>
     </div>`;
   }).join(''):'<div class="empty-state">No hay vencimientos pendientes.</div>';
@@ -1280,22 +1488,25 @@ function _procesarPagoVenc(id, monto){
   const pagadoHasta=v.pagos.reduce((s,p)=>s+p.monto,0);
   const falta=montoOrig-pagadoHasta;
   const pagoReal=Math.min(monto,falta);
-  if(v.tarjetaIdx!==null&&data.tarjetas[v.tarjetaIdx]) data.tarjetas[v.tarjetaIdx].saldo+=pagoReal;
   const hoyPago=new Date();
-  v.pagos.push({monto:pagoReal,fecha:hoyPago.toLocaleDateString('es-AR'),fechaYM:hoyPago.getFullYear()+'-'+String(hoyPago.getMonth()+1).padStart(2,'0')});
-  // Registrar en recaudación del mes
-  const ym=mesActual();
-  if(!data.recaudado[ym]) data.recaudado[ym]=[];
-  data.recaudado[ym].push({concepto:'📤 Pago: '+v.nombre,monto:-pagoReal,esVencimiento:true});
+  const hoyYM=hoyPago.getFullYear()+'-'+String(hoyPago.getMonth()+1).padStart(2,'0');
+
+  if(v.esTarjeta && v.tarjetaIdx!==null && data.tarjetas[v.tarjetaIdx]){
+    // Es pago de tarjeta: BAJA el saldo (SUBE el disponible)
+    data.tarjetas[v.tarjetaIdx].saldo=Math.max(0,data.tarjetas[v.tarjetaIdx].saldo-pagoReal);
+  }
+  // Los servicios no tocan tarjetas
+
+  v.pagos.push({monto:pagoReal,fecha:hoyPago.toLocaleDateString('es-AR'),fechaYM:hoyYM});
   const totalPagado=v.pagos.reduce((s,p)=>s+p.monto,0);
   if(totalPagado>=montoOrig){
-    const hoyTotal=new Date();
     v.pagado=true;
-    v.fechaPago=hoyTotal.toLocaleDateString('es-AR');
-    v.fechaPagoYM=hoyTotal.getFullYear()+'-'+String(hoyTotal.getMonth()+1).padStart(2,'0');
+    v.fechaPago=hoyPago.toLocaleDateString('es-AR');
+    v.fechaPagoYM=hoyYM;
   }
   save();renderAll();
 }
+
 
 function eliminarPagoVenc(id,pi){
   const v=data.vencimientos.find(x=>x.id===id);
@@ -1374,7 +1585,43 @@ function agregarImprevisto(){
 function eliminarImprevisto(ym,i){data.imprevistos[ym].splice(i,1);save();renderAll();}
 
 // ---- TARJETAS ----
+function renderResumenPorTarjeta(){
+  const el=document.getElementById('resumen-por-tarjeta');
+  if(!el) return;
+  if(!data.tarjetas.length){el.innerHTML='<div class="empty-state">Sin tarjetas cargadas.</div>';return;}
+  const ym=mesActual();
+  const exts=data.extracciones[ym]||[];
+  let html='';
+  data.tarjetas.forEach((t,i)=>{
+    // Extracciones de esta tarjeta este mes
+    const extsTarjeta=exts.filter(e=>e.tarjetaIdx===i);
+    const totalExt=extsTarjeta.reduce((s,e)=>s+e.bruto,0);
+    // Pagos de vencimientos con esta tarjeta este mes
+    const pagosVenc=data.vencimientos.filter(v=>v.pagos&&v.pagos.length&&v.tarjetaIdx===i);
+    let totalPagosVenc=0;
+    pagosVenc.forEach(v=>{
+      v.pagos.forEach(p=>{
+        if(p.fechaYM===ym) totalPagosVenc+=p.monto;
+      });
+    });
+    const totalCargado=totalExt+totalPagosVenc;
+    // Mostrar todas las tarjetas aunque no tengan movimientos este mes
+    html+=`<div style="background:var(--surface2);border-radius:10px;padding:12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <span style="font-weight:700;font-size:14px">💳 ${t.nombre}</span>
+        <span style="font-size:12px;color:var(--muted)">${ym}</span>
+      </div>
+      ${totalExt?`<div class="card-row"><span>Extracciones del mes</span><span class="c-warn">${fmt(totalExt)}</span></div>`:'<div class="card-row"><span>Extracciones</span><span style="color:var(--muted)">$0</span></div>'}
+      ${totalPagosVenc?`<div class="card-row"><span>Pagos de servicios</span><span class="c-danger">${fmt(totalPagosVenc)}</span></div>`:''}
+      <div class="card-row" style="border-top:1px solid var(--border);margin-top:6px;padding-top:6px"><span>Disponible actual</span><span class="c-ok">${fmt(disponibleTarjeta(t))}</span></div>
+      <div class="card-row"><span style="color:var(--accent2);font-weight:600">Total cargado este mes</span><span style="color:var(--accent2);font-weight:700">${fmt(totalCargado)}</span></div>
+    </div>`;
+  });
+  el.innerHTML=html;
+}
+
 function renderTarjetas(){
+  renderResumenPorTarjeta();
   document.getElementById('lista-tarjetas').innerHTML=data.tarjetas.length?data.tarjetas.map((t,i)=>{
     const hoyD=new Date();const vence=t.vence?new Date(t.vence+'T12:00:00'):null;
     const dias=vence?Math.ceil((vence-hoyD)/86400000):null;
@@ -1412,14 +1659,9 @@ function agregarTarjeta(){
   if(!nombre){alert('Ingresá un nombre');return;}
   const cierre=document.getElementById('t-cierre').value;
   data.tarjetas.push({nombre,saldo,cupo,vence,cierre:cierre||null,tasa});save();renderAll();
-  document.getElementById('t-nombre').value='';document.getElementById('t-saldo').value='';document.getElementById('t-cupo').value='';document.getElementById('t-vence').value='';document.getElementById('t-cierre').value='';
+  document.getElementById('t-nombre').value='';document.getElementById('t-saldo').value='';document.getElementById('t-cupo').value='';document.getElementById('t-vence').value='';document.getElementById('t-cierre').value='';document.getElementById('t-tasa').value='8';
 }
-function pagarTarjeta(i){
-  const monto=prompt(`¿Cuánto pagás en ${data.tarjetas[i].nombre}?\n(Saldo: ${fmt(data.tarjetas[i].saldo)})`,data.tarjetas[i].saldo);
-  if(!monto)return;
-  data.tarjetas[i].saldo=Math.max(0,data.tarjetas[i].saldo-parseFloat(monto));
-  save();renderAll();
-}
+
 function editarSaldo(i){const nuevo=prompt(`Nuevo saldo de ${data.tarjetas[i].nombre}:`,data.tarjetas[i].saldo);if(!nuevo)return;data.tarjetas[i].saldo=parseFloat(nuevo)||0;save();renderAll();}
 
 function editarTarjeta(i){
@@ -1786,6 +2028,15 @@ function toggleTotal(){
   arr.style.transform=abierto?'':'rotate(90deg)';
 }
 
+function toggleResumenTarjeta(){
+  const det=document.getElementById('rst-detalle');
+  const arr=document.getElementById('rst-arrow');
+  const abierto=det.style.display!=='none';
+  det.style.display=abierto?'none':'block';
+  arr.style.transform=abierto?'':'rotate(90deg)';
+  if(!abierto) renderResumenPorTarjeta();
+}
+
 function toggleDesglose(){
   const det=document.getElementById('desglose-detalle');
   const arr=document.getElementById('desglose-arrow');
@@ -1805,32 +2056,52 @@ function toggleTarjetasDisp(){
 
 function renderTarjetasDisponibles(){
   const hoyD=new Date();
+  const lista=document.getElementById('tarj-disp-lista');
+  const mini=document.getElementById('tarj-disp-mini');
+
+  if(!data.tarjetas.length){
+    if(mini) mini.textContent='Sin tarjetas cargadas';
+    if(lista) lista.innerHTML='<div style="font-size:13px;color:var(--muted);padding:4px 0">No hay tarjetas cargadas.</div>';
+    return;
+  }
+
   const aptas=data.tarjetas.filter(t=>{
     if(!t.cierre) return false;
     const fc=new Date(t.cierre+'T12:00:00');
-    const dias=Math.ceil((fc-hoyD)/86400000);
-    return dias>=20;
+    return Math.ceil((fc-hoyD)/86400000)>=20;
   });
-  const mini=document.getElementById('tarj-disp-mini');
-  if(mini) mini.textContent=aptas.length?aptas.length+' tarjeta'+(aptas.length!==1?'s':'')+' apta'+(aptas.length!==1?'s':''):'Sin tarjetas con 20+ días para el cierre';
-  const lista=document.getElementById('tarj-disp-lista');
+
+  if(mini) mini.textContent=aptas.length
+    ? aptas.length+' tarjeta'+(aptas.length!==1?'s':'')+' apta'+(aptas.length!==1?'s':'')
+    : 'Todas las tarjetas: ver disponibles';
+
   if(!lista) return;
-  if(!aptas.length){
-    lista.innerHTML='<div style="font-size:13px;color:var(--muted);padding:4px 0">Ninguna tarjeta tiene 25 días o más para el cierre.</div>';
-    return;
-  }
-  lista.innerHTML=aptas.map(t=>{
-    const fc=new Date(t.cierre+'T12:00:00');
-    const dias=Math.ceil((fc-hoyD)/86400000);
+
+  // Mostrar TODAS las tarjetas siempre
+  lista.innerHTML=data.tarjetas.map(t=>{
     const disp=disponibleTarjeta(t);
-    return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
-      <div>
-        <div style="font-weight:700;font-size:13px">${t.nombre}</div>
-        <div style="font-size:11px;color:var(--ok);margin-top:1px">Cierre en ${dias}d · ${fc.toLocaleDateString('es-AR')}</div>
-      </div>
-      <div style="text-align:right">
-        <div style="font-weight:700;color:var(--ok);font-size:14px">${fmt(disp)}</div>
-        <div style="font-size:11px;color:var(--muted)">disponible</div>
+    let cierreHtml='';
+    let esApta=false;
+    if(t.cierre){
+      const fc=new Date(t.cierre+'T12:00:00');
+      const dias=Math.ceil((fc-hoyD)/86400000);
+      esApta=dias>=20;
+      const color=dias>=20?'var(--ok)':dias>=0?'var(--accent2)':'var(--danger)';
+      const txt=dias<0?'Cierre vencido hace '+Math.abs(dias)+'d':'Cierre en '+dias+'d · '+fc.toLocaleDateString('es-AR');
+      cierreHtml=`<div style="font-size:11px;color:${color};margin-top:2px">${txt}${dias<20&&dias>=0?' · Actualizá la fecha':''}</div>`;
+    } else {
+      cierreHtml='<div style="font-size:11px;color:var(--muted);margin-top:2px">Sin fecha de cierre cargada</div>';
+    }
+    return `<div style="background:${esApta?'rgba(106,247,160,0.06)':'rgba(255,255,255,0.02)'};border:1px solid ${esApta?'rgba(106,247,160,0.3)':'var(--border)'};border-radius:10px;padding:10px 12px;margin-bottom:8px">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div style="font-weight:700;font-size:14px">${t.nombre}${esApta?' <span style="font-size:10px;background:rgba(106,247,160,0.2);color:var(--ok);padding:2px 6px;border-radius:10px">APTA</span>':''}</div>
+          ${cierreHtml}
+        </div>
+        <div style="text-align:right">
+          <div style="font-weight:700;color:var(--ok);font-size:15px">${fmt(disp)}</div>
+          <div style="font-size:10px;color:var(--muted)">disponible</div>
+        </div>
       </div>
     </div>`;
   }).join('');
@@ -1854,6 +2125,27 @@ function renderAll(){
 }
 
 renderAll();
+
+function pagarTarjeta(i){
+  const t=data.tarjetas[i];
+  document.getElementById('mpt-idx').value=i;
+  document.getElementById('mpt-nombre').textContent=t.nombre;
+  document.getElementById('mpt-saldo').textContent=fmt(t.saldo);
+  document.getElementById('mpt-disp').textContent=fmt(disponibleTarjeta(t));
+  document.getElementById('mpt-monto').value='';
+  document.getElementById('modal-pagar-tarjeta').style.display='block';
+}
+function confirmarPagoTarjeta(){
+  const i=parseInt(document.getElementById('mpt-idx').value);
+  const monto=parseFloat(document.getElementById('mpt-monto').value)||0;
+  if(!monto||monto<=0){alert('Ingresá un monto válido');return;}
+  data.tarjetas[i].saldo=Math.max(0,data.tarjetas[i].saldo-monto);
+  document.getElementById('modal-pagar-tarjeta').style.display='none';
+  save();renderAll();
+}
+function cerrarModalPagarTarjeta(){
+  document.getElementById('modal-pagar-tarjeta').style.display='none';
+}
 </script>
 <!-- MODAL EDITAR TARJETA -->
 <div id="modal-tarjeta" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:9999;padding:16px;overflow-y:auto;-webkit-overflow-scrolling:touch">
@@ -1901,6 +2193,62 @@ renderAll();
   </div>
 </div>
 
+
+<!-- MODAL PAGAR TARJETA -->
+<div id="modal-pagar-tarjeta" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:9999;padding:16px;overflow-y:auto">
+  <div style="background:var(--surface);border-radius:16px;padding:20px;max-width:400px;margin:60px auto">
+    <div style="font-size:16px;font-weight:700;margin-bottom:4px">💳 Pagar tarjeta</div>
+    <div style="font-size:14px;color:var(--accent);font-weight:600;margin-bottom:16px" id="mpt-nombre"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:16px">
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:3px">SALDO ACTUAL</div>
+        <div style="font-weight:700;color:var(--danger)" id="mpt-saldo">$0</div>
+      </div>
+      <div style="background:var(--surface2);border-radius:8px;padding:10px;text-align:center">
+        <div style="font-size:10px;color:var(--muted);margin-bottom:3px">DISPONIBLE</div>
+        <div style="font-weight:700;color:var(--ok)" id="mpt-disp">$0</div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>Monto que pagás ($)</label>
+      <input type="number" id="mpt-monto" placeholder="0" style="font-size:18px">
+    </div>
+    <input type="hidden" id="mpt-idx">
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-ok" onclick="confirmarPagoTarjeta()">✓ Confirmar pago</button>
+      <button class="btn btn-danger" onclick="cerrarModalPagarTarjeta()">Cancelar</button>
+    </div>
+  </div>
+</div>
+
+<!-- MODAL EDITAR VENCIMIENTO -->
+<div id="modal-editar-venc" style="display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.85);z-index:9999;padding:16px;overflow-y:auto">
+  <div style="background:var(--surface);border-radius:16px;padding:20px;max-width:400px;margin:40px auto">
+    <div style="font-size:16px;font-weight:700;margin-bottom:16px">✏️ Editar vencimiento</div>
+    <input type="hidden" id="mev-id">
+    <div class="form-group"><label>Nombre</label><input type="text" id="mev-nombre"></div>
+    <div class="form-group"><label>Tipo</label>
+      <select id="mev-tipo" onchange="toggleTipoEditVenc()">
+        <option value="servicio">🧾 Servicio</option>
+        <option value="tarjeta">💳 Tarjeta de crédito</option>
+      </select>
+    </div>
+    <div id="mev-form-tarjeta" style="display:none">
+      <div class="form-group"><label>¿Cuál tarjeta?</label>
+        <select id="mev-tarjeta-idx"></select>
+      </div>
+    </div>
+    <div class="form-group"><label>Monto ($)</label><input type="number" id="mev-monto"></div>
+    <div class="form-row">
+      <div class="form-group"><label>Fecha vencimiento</label><input type="date" id="mev-fecha"></div>
+      <div class="form-group"><label>Fecha cierre</label><input type="date" id="mev-cierre"></div>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="btn btn-primary" onclick="guardarEdicionVenc()">Guardar</button>
+      <button class="btn btn-danger" onclick="cerrarModalEditarVenc()">Cancelar</button>
+    </div>
+  </div>
+</div>
 
 </body>
 </html>
