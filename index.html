@@ -404,36 +404,10 @@ input:focus,select:focus{border-color:var(--accent)}
 
   <!-- GASTOS -->
   <div id="op-gastos" class="op-panel">
-    <div class="section-title">Gastos fijos mensuales</div>
-    <div class="info-box">Actualizá los montos cada mes cuando lleguen las boletas.</div>
-    <div id="lista-fijos"></div>
-    <div class="card">
-      <div class="card-nombre" style="margin-bottom:10px">➕ Agregar gasto fijo</div>
-      <div class="form-group">
-        <label>Concepto</label>
-        <select id="gf-concepto">
-          <option value="">Seleccionar...</option>
-          <option>Luz</option><option>Gas</option><option>Internet</option>
-          <option>Prepaga</option><option>Monotributo</option>
-          <option>Seguro vehículo</option><option>Patente</option>
-          <option>Combustible</option><option>Alquiler</option><option>Otro</option>
-        </select>
-      </div>
-      <div class="form-group" id="gf-otro-wrap" style="display:none"><label>Nombre</label><input type="text" id="gf-otro" placeholder="Describí el gasto"></div>
-      <div class="form-group"><label>Monto ($)</label><input type="number" id="gf-monto" placeholder="0"></div>
-      <div class="form-group">
-        <label>Pagar con</label>
-        <select id="gf-pago">
-          <option value="">Efectivo / Débito</option>
-        </select>
-      </div>
-      <button class="btn btn-primary btn-full" onclick="agregarFijo()">Agregar</button>
-    </div>
-    <div class="divider"></div>
-    <div class="section-title">Imprevistos del mes</div>
+    <div class="section-title">Gastos mensuales</div>
     <div id="lista-imprevistos"></div>
     <div class="card">
-      <div class="card-nombre" style="margin-bottom:10px">⚡ Agregar imprevisto</div>
+      <div class="card-nombre" style="margin-bottom:10px">➕ Agregar gasto mensual</div>
       <div class="form-group"><label>Descripción</label><input type="text" id="imp-desc" placeholder="Ej: Reparación camioneta, Combustible..."></div>
       <div class="form-group"><label>Monto ($)</label><input type="number" id="imp-monto" placeholder="0"></div>
       <div class="form-group">
@@ -442,7 +416,7 @@ input:focus,select:focus{border-color:var(--accent)}
           <option value="">Efectivo / Débito</option>
         </select>
       </div>
-      <button class="btn btn-warn btn-full" onclick="agregarImprevisto()">Agregar imprevisto</button>
+      <button class="btn btn-primary btn-full" onclick="agregarImprevisto()">Agregar gasto mensual</button>
     </div>
   </div>
 
@@ -1136,9 +1110,9 @@ function renderGastos(){
   poblarPago('gf-pago');poblarPago('imp-pago');
   const gfc=document.getElementById('gf-concepto');if(gfc)gfc.onchange=function(){document.getElementById('gf-otro-wrap').style.display=this.value==='Otro'?'block':'none';};
   const ym=mesActual();
-  const lf=document.getElementById('lista-fijos');if(lf)lf.innerHTML=data.fijos.length?data.fijos.map((f,i)=>`<div class="rec-item"><div><span style="font-weight:600">${f.concepto}</span>${f.tarjetaNombre&&f.tarjetaNombre!=='Efectivo'?`<div style="font-size:11px;color:var(--muted)">${f.tarjetaNombre}</div>`:''}</div><span style="display:flex;align-items:center;gap:8px"><span style="color:var(--accent2);font-weight:700">${fmt(f.monto)}</span><span class="rec-del" onclick="elimFijo(${i})">✕</span></span></div>`).join(''):'<div class="empty-state">Sin gastos fijos.</div>';
+
   const li=document.getElementById('lista-imprevistos');const imps=data.imprevistos[ym]||[];
-  if(li)li.innerHTML=imps.length?imps.map((imp,i)=>`<div class="rec-item"><div><span style="font-weight:600">${imp.desc}</span>${imp.tarjetaNombre&&imp.tarjetaNombre!=='Efectivo'?`<div style="font-size:11px;color:var(--muted)">${imp.tarjetaNombre}</div>`:''}</div><span style="display:flex;align-items:center;gap:8px"><span style="color:var(--accent2);font-weight:700">${fmt(imp.monto)}</span><span class="rec-del" onclick="elimImprevisto('${ym}',${i})">✕</span></span></div>`).join(''):'<div class="empty-state">Sin imprevistos este mes.</div>';
+  if(li)li.innerHTML=imps.length?imps.map((imp,i)=>`<div class="rec-item"><div><span style="font-weight:600">${imp.desc}</span>${imp.tarjetaNombre&&imp.tarjetaNombre!=='Efectivo'?`<div style="font-size:11px;color:var(--muted)">${imp.tarjetaNombre}</div>`:''}</div><span style="display:flex;align-items:center;gap:8px"><span style="color:var(--accent2);font-weight:700">${fmt(imp.monto)}</span><span class="rec-del" onclick="elimImprevisto('${ym}',${i})">✕</span></span></div>`).join(''):'<div class="empty-state">Sin gastos este mes.</div>';
 }
 function agregarTarjeta(){
   const nombre=document.getElementById('t-nombre').value.trim();const saldo=parseFloat(document.getElementById('t-saldo').value)||0;const cupo=parseFloat(document.getElementById('t-cupo').value)||0;
