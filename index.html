@@ -143,6 +143,20 @@ input:focus,select:focus{border-color:var(--accent)}
     <div class="barra-pct"><span id="barra-pct-txt">0%</span><span id="barra-meta-txt">Meta: $0</span></div>
   </div>
 
+  <!-- ACCESOS RAPIDOS -->
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
+    <button onclick="showMain('operaciones',null);showOp('extraccion',null)" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:left;width:100%">
+      <div style="font-size:20px;margin-bottom:4px">💳</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text)">Extracción</div>
+      <div style="font-size:11px;color:var(--muted)">Sacar de tarjeta</div>
+    </button>
+    <button onclick="showMain('operaciones',null);showOp('ingresos',null)" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:left;width:100%">
+      <div style="font-size:20px;margin-bottom:4px">💵</div>
+      <div style="font-size:13px;font-weight:700;color:var(--text)">Ingresos</div>
+      <div style="font-size:11px;color:var(--muted)">Registrar ingreso</div>
+    </button>
+  </div>
+
   <!-- TOTAL Y ARRASTRE - arriba destacado -->
   <div style="background:var(--surface);border-radius:12px;border:1px solid rgba(247,106,106,0.4);padding:16px;margin-bottom:14px">
     <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Total que necesitás este mes</div>
@@ -156,11 +170,19 @@ input:focus,select:focus{border-color:var(--accent)}
     </div>
   </div>
 
-  <div class="kpi-grid">
-    <div class="kpi"><div class="kpi-label">Gastos fijos</div><div class="kpi-value c-warn" id="res-fijos">$0</div></div>
-    <div class="kpi"><div class="kpi-label">Tarjetas (saldo)</div><div class="kpi-value c-danger" id="res-tarjetas">$0</div></div>
-    <div class="kpi"><div class="kpi-label">Imprevistos</div><div class="kpi-value c-warn" id="res-imprevistos">$0</div></div>
-    <div class="kpi"><div class="kpi-label">Costo extracción</div><div class="kpi-value c-danger" id="res-costo-ext">$0</div></div>
+  <div style="background:var(--surface);border-radius:12px;border:1px solid var(--border);margin-bottom:14px;overflow:hidden">
+    <div onclick="toggleDesglose()" style="display:flex;justify-content:space-between;align-items:center;padding:11px 14px;cursor:pointer">
+      <span style="font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px">📊 Desglose del mes</span>
+      <span id="desglose-arrow" style="font-size:16px;color:var(--muted)">▶</span>
+    </div>
+    <div id="desglose-detalle" style="display:none;border-top:1px solid var(--border);padding:10px 14px 14px">
+      <div class="kpi-grid">
+        <div class="kpi"><div class="kpi-label">Gastos fijos</div><div class="kpi-value c-warn" id="res-fijos">$0</div></div>
+        <div class="kpi"><div class="kpi-label">Tarjetas (saldo)</div><div class="kpi-value c-danger" id="res-tarjetas">$0</div></div>
+        <div class="kpi"><div class="kpi-label">Imprevistos</div><div class="kpi-value c-warn" id="res-imprevistos">$0</div></div>
+        <div class="kpi"><div class="kpi-label">Costo extracción</div><div class="kpi-value c-danger" id="res-costo-ext">$0</div></div>
+      </div>
+    </div>
   </div>
 
   <!-- VENCIMIENTOS COLAPSABLE -->
@@ -421,25 +443,34 @@ input:focus,select:focus{border-color:var(--accent)}
 
 <!-- ===================== COSECHA ===================== -->
 <div id="panel-cosecha" class="panel">
-  <div class="card" style="border-color:var(--accent)">
-    <div class="card-nombre" style="color:var(--accent);margin-bottom:12px">🌿 Próxima cosecha</div>
+  <!-- Lista de cosechas -->
+  <div class="section-title">Cosechas registradas</div>
+  <div id="lista-cosechas"></div>
+
+  <!-- Formulario nueva cosecha -->
+  <div class="card" style="border-color:var(--accent);margin-bottom:14px">
+    <div class="card-nombre" style="color:var(--accent);margin-bottom:12px">🌿 Agregar cosecha</div>
+    <input type="hidden" id="c-edit-idx" value="">
+    <div class="form-group"><label>Nombre / descripción</label><input type="text" id="c-nombre" placeholder="Ej: Cosecha Junio 2026"></div>
     <div class="form-group"><label>Fecha estimada</label><input type="date" id="c-fecha"></div>
     <div class="form-row">
       <div class="form-group"><label>Gramos</label><input type="number" id="c-gramos" placeholder="350" oninput="calcCosecha()"></div>
       <div class="form-group"><label>Precio/gramo ($)</label><input type="number" id="c-precio" placeholder="13000" oninput="calcCosecha()"></div>
     </div>
     <div class="form-group"><label>% para deudas</label><input type="number" id="c-pct" placeholder="90" value="90" oninput="calcCosecha()"></div>
-    <button class="btn btn-primary btn-full" onclick="guardarCosecha()">Guardar cosecha</button>
+    <div class="card" id="cosecha-preview" style="display:none;margin-bottom:10px;background:var(--surface2)">
+      <div class="card-row"><span>Ingreso bruto</span><span id="cp-bruto">—</span></div>
+      <div class="card-row"><span>Para vos (10%)</span><span id="cp-gastos">—</span></div>
+      <div class="card-row"><span>Para deudas</span><span id="cp-deuda" style="color:var(--ok)">—</span></div>
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-primary" onclick="guardarCosecha()" id="c-btn-guardar">Agregar cosecha</button>
+      <button class="btn btn-warn" id="c-btn-cancelar" style="display:none" onclick="cancelarEditCosecha()">Cancelar</button>
+    </div>
   </div>
-  <div class="card" id="cosecha-preview" style="display:none">
-    <div class="card-nombre" style="margin-bottom:10px">Proyección de ingreso</div>
-    <div class="card-row"><span>Ingreso bruto</span><span id="cp-bruto">—</span></div>
-    <div class="card-row"><span>Para vos (10%)</span><span id="cp-gastos">—</span></div>
-    <div class="card-row"><span>Para deudas (90%)</span><span id="cp-deuda" style="color:var(--ok)">—</span></div>
-    <div class="card-row"><span>Frecuencia estimada</span><span>Cada 3 meses</span></div>
-  </div>
+
   <!-- Proyección 6 meses -->
-  <div class="section-title" style="margin-top:16px">Proyección 6 meses</div>
+  <div class="section-title">Proyección 6 meses</div>
   <div class="info-box">El arrastre se acumula si no cubrís el total del mes.</div>
   <div id="proyeccion-lista"><div class="empty-state">Cargá datos para ver la proyección.</div></div>
 </div>
@@ -532,6 +563,12 @@ function showMain(id,el){
   document.querySelectorAll('[id^="panel-"]').forEach(p=>p.classList.remove('active'));
   document.getElementById('panel-'+id).classList.add('active');
   if(el) el.classList.add('active');
+  else {
+    // Activar tab sin elemento
+    document.querySelectorAll('.tab-main').forEach(t=>{
+      if(t.getAttribute('onclick')&&t.getAttribute('onclick').includes("'"+id+"'")) t.classList.add('active');
+    });
+  }
   renderAll();
 }
 
@@ -1428,25 +1465,117 @@ function calcCosecha(){
   document.getElementById('cosecha-preview').style.display='block';
   renderProyeccion();
 }
-function guardarCosecha(){
-  data.cosecha={fecha:document.getElementById('c-fecha').value,gramos:parseFloat(document.getElementById('c-gramos').value)||0,precio:parseFloat(document.getElementById('c-precio').value)||0,pct:parseFloat(document.getElementById('c-pct').value)||90};
-  save();alert('Cosecha guardada ✓');renderProyeccion();
+
+
+function calcCosecha(){
+  const g=parseFloat(document.getElementById('c-gramos').value)||0;
+  const p=parseFloat(document.getElementById('c-precio').value)||0;
+  const pct=parseFloat(document.getElementById('c-pct').value)||90;
+  if(!g||!p){document.getElementById('cosecha-preview').style.display='none';return;}
+  const bruto=g*p;
+  document.getElementById('cp-bruto').textContent=fmt(bruto);
+  document.getElementById('cp-gastos').textContent=fmt(bruto*(1-pct/100));
+  document.getElementById('cp-deuda').textContent=fmt(bruto*pct/100);
+  document.getElementById('cosecha-preview').style.display='block';
 }
-function renderCosecha(){
-  if(!data.cosecha)return;
-  const c=data.cosecha;
-  if(c.fecha)document.getElementById('c-fecha').value=c.fecha;
-  if(c.gramos)document.getElementById('c-gramos').value=c.gramos;
-  if(c.precio)document.getElementById('c-precio').value=c.precio;
-  if(c.pct)document.getElementById('c-pct').value=c.pct;
+
+function guardarCosecha(){
+  const nombre=document.getElementById('c-nombre').value.trim()||'Cosecha';
+  const fecha=document.getElementById('c-fecha').value;
+  const gramos=parseFloat(document.getElementById('c-gramos').value)||0;
+  const precio=parseFloat(document.getElementById('c-precio').value)||0;
+  const pct=parseFloat(document.getElementById('c-pct').value)||90;
+  if(!gramos||!precio){alert('Ingresá gramos y precio');return;}
+  if(!data.cosechas) data.cosechas=[];
+  const editIdx=document.getElementById('c-edit-idx').value;
+  if(editIdx!==''){
+    data.cosechas[parseInt(editIdx)]={nombre,fecha,gramos,precio,pct};
+  } else {
+    data.cosechas.push({nombre,fecha,gramos,precio,pct});
+  }
+  save();
+  cancelarEditCosecha();
+  renderAll();
+}
+
+function editarCosecha(i){
+  const c=data.cosechas[i];
+  document.getElementById('c-edit-idx').value=i;
+  document.getElementById('c-nombre').value=c.nombre||'';
+  document.getElementById('c-fecha').value=c.fecha||'';
+  document.getElementById('c-gramos').value=c.gramos||'';
+  document.getElementById('c-precio').value=c.precio||'';
+  document.getElementById('c-pct').value=c.pct||90;
+  document.getElementById('c-btn-guardar').textContent='Guardar cambios';
+  document.getElementById('c-btn-cancelar').style.display='block';
   calcCosecha();
+}
+
+function cancelarEditCosecha(){
+  document.getElementById('c-edit-idx').value='';
+  document.getElementById('c-nombre').value='';
+  document.getElementById('c-fecha').value='';
+  document.getElementById('c-gramos').value='';
+  document.getElementById('c-precio').value='';
+  document.getElementById('c-pct').value=90;
+  document.getElementById('c-btn-guardar').textContent='Agregar cosecha';
+  document.getElementById('c-btn-cancelar').style.display='none';
+  document.getElementById('cosecha-preview').style.display='none';
+}
+
+function eliminarCosecha(i){
+  if(!confirm('¿Eliminar esta cosecha?')) return;
+  data.cosechas.splice(i,1);
+  save();renderAll();
+}
+
+function resetearCosechas(){
+  if(!confirm('¿Eliminar TODAS las cosechas?')) return;
+  data.cosechas=[];
+  save();renderAll();
+}
+
+function renderCosecha(){
+  if(!data.cosechas) data.cosechas=[];
+  // Migrar cosecha antigua si existe
+  if(data.cosecha&&data.cosechas.length===0){
+    data.cosechas=[{nombre:'Cosecha',fecha:data.cosecha.fecha,gramos:data.cosecha.gramos,precio:data.cosecha.precio,pct:data.cosecha.pct||90}];
+    data.cosecha=null;
+    save();
+  }
+  const lista=document.getElementById('lista-cosechas');
+  if(!lista) return;
+  if(!data.cosechas.length){
+    lista.innerHTML='<div class="empty-state">Sin cosechas registradas. Agregá una abajo.</div>';
+  } else {
+    lista.innerHTML=data.cosechas.map((c,i)=>{
+      const bruto=c.gramos*c.precio;
+      return `<div class="card" style="margin-bottom:10px">
+        <div class="card-header" style="margin-bottom:8px">
+          <span class="card-nombre">🌿 ${c.nombre}</span>
+          <span style="font-size:12px;color:var(--muted)">${c.fecha?new Date(c.fecha+'T12:00:00').toLocaleDateString('es-AR'):''}</span>
+        </div>
+        <div class="card-row"><span>Gramos × Precio</span><span>${c.gramos}g × ${fmt(c.precio)}</span></div>
+        <div class="card-row"><span>Ingreso bruto</span><span>${fmt(bruto)}</span></div>
+        <div class="card-row"><span>Para deudas (${c.pct}%)</span><span style="color:var(--ok)">${fmt(bruto*c.pct/100)}</span></div>
+        <div class="card-row"><span>Para vos</span><span style="color:var(--gold)">${fmt(bruto*(1-c.pct/100))}</span></div>
+        <div class="card-actions">
+          <button class="btn btn-warn" onclick="editarCosecha(${i})">Editar</button>
+          <button class="btn btn-danger" onclick="eliminarCosecha(${i})">Eliminar</button>
+        </div>
+      </div>`;
+    }).join('')+`<button class="btn btn-danger btn-full" style="margin-top:4px" onclick="resetearCosechas()">🗑️ Resetear todas</button>`;
+  }
 }
 
 function renderProyeccion(){
   const lista=document.getElementById('proyeccion-lista');
   const tasaPromedio=data.tarjetas.length?data.tarjetas.reduce((s,t)=>s+t.tasa,0)/data.tarjetas.length/100:0.08;
-  const cosechaIngreso=data.cosecha?data.cosecha.gramos*data.cosecha.precio*(data.cosecha.pct/100):0;
-  const cosechaFecha=data.cosecha&&data.cosecha.fecha?new Date(data.cosecha.fecha+'T12:00:00'):null;
+  // Usar primera cosecha para proyección
+  const cosechas=data.cosechas||[];
+  const primeraCosecha=cosechas.length?cosechas[0]:null;
+  const cosechaIngreso=primeraCosecha?primeraCosecha.gramos*primeraCosecha.precio*(primeraCosecha.pct/100):0;
+  const cosechaFecha=primeraCosecha&&primeraCosecha.fecha?new Date(primeraCosecha.fecha+'T12:00:00'):null;
   let deuda=data.tarjetas.reduce((s,t)=>s+t.saldo,0)+(data.arrastre?.monto||0);
   const hoyD=new Date();
   const meses=['Enero','Febrero','Marzo','Abril','Mayo','Junio','Julio','Agosto','Septiembre','Octubre','Noviembre','Diciembre'];
@@ -1648,6 +1777,22 @@ function toggleRecaudado(){
   const abierto = det.style.display !== 'none';
   det.style.display = abierto ? 'none' : 'block';
   arr.style.transform = abierto ? '' : 'rotate(90deg)';
+}
+
+function toggleTotal(){
+  const det=document.getElementById('total-detalle');
+  const arr=document.getElementById('total-arrow');
+  const abierto=det.style.display!=='none';
+  det.style.display=abierto?'none':'block';
+  arr.style.transform=abierto?'':'rotate(90deg)';
+}
+
+function toggleDesglose(){
+  const det=document.getElementById('desglose-detalle');
+  const arr=document.getElementById('desglose-arrow');
+  const abierto=det.style.display!=='none';
+  det.style.display=abierto?'none':'block';
+  arr.style.transform=abierto?'':'rotate(90deg)';
 }
 
 function toggleTarjetasDisp(){
