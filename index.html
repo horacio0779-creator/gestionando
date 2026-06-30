@@ -144,29 +144,28 @@ input:focus,select:focus{border-color:var(--accent)}
   </div>
 
   <!-- ACCESOS RAPIDOS -->
-  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px">
-    <button onclick="showMain('operaciones',null);showOp('extraccion',null)" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:left;width:100%">
-      <div style="font-size:20px;margin-bottom:4px">💳</div>
-      <div style="font-size:13px;font-weight:700;color:var(--text)">Extracción</div>
-      <div style="font-size:11px;color:var(--muted)">Sacar de tarjeta</div>
+  <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:14px">
+    <button onclick="showMain('operaciones',null);showOp('extraccion',null)" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 8px;cursor:pointer;text-align:left;width:100%">
+      <div style="font-size:18px;margin-bottom:3px">💳</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text)">Extracción</div>
     </button>
-    <button onclick="showMain('operaciones',null);showOp('ingresos',null)" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;cursor:pointer;text-align:left;width:100%">
-      <div style="font-size:20px;margin-bottom:4px">💵</div>
-      <div style="font-size:13px;font-weight:700;color:var(--text)">Ingresos</div>
-      <div style="font-size:11px;color:var(--muted)">Registrar ingreso</div>
+    <button onclick="showMain('operaciones',null);showOp('ingresos',null)" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 8px;cursor:pointer;text-align:left;width:100%">
+      <div style="font-size:18px;margin-bottom:3px">💵</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text)">Ingresos</div>
+    </button>
+    <button onclick="showMain('operaciones',null);showOp('gastos',null)" style="background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:12px 8px;cursor:pointer;text-align:left;width:100%">
+      <div style="font-size:18px;margin-bottom:3px">🧾</div>
+      <div style="font-size:12px;font-weight:700;color:var(--text)">Gastos</div>
     </button>
   </div>
 
-  <!-- TOTAL Y ARRASTRE - arriba destacado -->
-  <div style="background:var(--surface);border-radius:12px;border:1px solid rgba(247,106,106,0.4);padding:16px;margin-bottom:14px">
-    <div style="font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px">Total que necesitás este mes</div>
-    <div style="font-size:22px;font-weight:700;color:var(--danger);margin-bottom:3px" id="res-total">$0</div>
-    <div style="font-size:11px;color:var(--muted)" id="res-total-sub"></div>
-    <!-- Arrastre inline -->
-    <div id="arrastre-card" style="display:none;margin-top:10px;padding-top:10px;border-top:1px solid rgba(247,106,106,0.3)">
-      <div style="font-size:11px;color:var(--danger);text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px;font-weight:600">⚠️ Incluye arrastre</div>
-      <div style="font-size:18px;font-weight:700;color:var(--danger)" id="arrastre-monto">$0</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:2px" id="arrastre-desc"></div>
+  <!-- IDs ocultos necesarios para el cálculo -->
+  <div style="display:none">
+    <span id="res-total"></span>
+    <span id="res-total-sub"></span>
+    <div id="arrastre-card">
+      <span id="arrastre-monto"></span>
+      <span id="arrastre-desc"></span>
     </div>
   </div>
 
