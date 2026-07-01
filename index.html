@@ -523,7 +523,7 @@ function confPagV(){
   const orig=v.montoOriginal||v.monto;const pag=v.pagos?v.pagos.reduce((s,p)=>s+p.monto,0):0;const flt=Math.max(0,orig-pag);
   const h=new Date();const m=h.getFullYear()+'-'+String(h.getMonth()+1).padStart(2,'0');
   if(v.esTarjeta&&v.tarjetaIdx!==null&&D.tarjetas[v.tarjetaIdx])D.tarjetas[v.tarjetaIdx].saldo=Math.max(0,D.tarjetas[v.tarjetaIdx].saldo-flt);
-  else if(ti!==null&&!isNaN(ti)&&D.tarjetas[ti])D.tarjetas[ti].saldo+=flt;
+  else if(ti!==null&&!isNaN(ti)&&D.tarjetas[ti]){D.tarjetas[ti].saldo+=flt;if(D.tarjetas[ti].disponible!==undefined)D.tarjetas[ti].disponible=Math.max(0,D.tarjetas[ti].disponible-flt);}
   if(!v.pagos)v.pagos=[];v.pagos.push({monto:flt,fecha:h.toLocaleDateString('es-AR'),ym:m});
   v.pagado=true;v.fechaPago=h.toLocaleDateString('es-AR');v.fechaPagoYM=m;
   cerrarModal('m-pagvenc');save();rend();
