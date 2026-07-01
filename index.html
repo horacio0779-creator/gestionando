@@ -83,10 +83,10 @@ input,select{width:100%;background:var(--sur2);border:1px solid var(--bor);borde
     <div class="coll-b" id="r-taplista"></div>
   </div>
   <div style="background:var(--sur);border-radius:12px;padding:14px;border:1px solid var(--bor);margin-bottom:14px">
-    <div style="font-size:15px;font-weight:700;margin-bottom:6px">Recaudación del mes</div>
-    <div style="font-size:36px;font-weight:700;color:var(--dan);letter-spacing:-1px" id="r-falta">$0</div>
-    <div style="font-size:12px;color:var(--mut);margin-bottom:4px">falta recaudar</div>
-    <div style="font-size:18px;font-weight:700;color:var(--ok)">Disponible: <span id="r-disp">$0</span></div>
+    <div style="font-size:12px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Lo que falta cubrir</div>
+    <div style="font-size:38px;font-weight:700;color:var(--dan);letter-spacing:-1px" id="r-falta">$0</div>
+    <div style="font-size:12px;color:var(--mut);margin-bottom:8px">para cubrir todos los vencimientos</div>
+    <div style="font-size:14px;font-weight:600;color:var(--ok);margin-bottom:4px">Recaudado neto: <span id="r-disp">$0</span></div>
     <div style="font-size:11px;color:var(--mut);margin-bottom:8px" id="r-det"></div>
     <div class="bar-bg"><div class="bar-f" id="r-barf" style="width:0%"></div></div>
     <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--mut)"><span id="r-pct">0%</span><span id="r-meta">Meta: $0</span></div>
@@ -148,6 +148,7 @@ input,select{width:100%;background:var(--sur2);border:1px solid var(--bor);borde
       <button class="btn btn-p btn-f" onclick="agregarExt()">Registrar extracción</button>
     </div>
     <div style="font-size:12px;font-weight:700;color:var(--mut);text-transform:uppercase;letter-spacing:.5px;margin-bottom:8px">Extracciones del mes</div>
+    <div id="e-total"></div>
     <div id="e-lista"></div>
   </div>
   <div id="sec-ingresos" class="sec">
@@ -458,10 +459,13 @@ function set(id,v){const e=document.getElementById(id);if(e)e.textContent=v;}
 function rendResumen(){
   const m=MA();set('r-mes',MN[MV.m]+' '+MV.y);
   const c=calcTot(m);const rec=calcRec(m);const pagV=calcPagV(m);
-  const recN=Math.max(0,rec-pagV);const falta=Math.max(0,c.total-rec);
-  const pct=c.total>0?Math.min(100,rec/c.total*100):0;const f=calcFondo();
+  const recN=Math.max(0,rec-pagV);
+  // Meta = total vencimientos pendientes
+  const metaV=D.vencimientos.filter(v=>!v.pagado).reduce((s,v)=>{const o=v.montoOriginal||v.monto;const p=v.pagos?v.pagos.reduce((a,x)=>a+x.monto,0):0;return s+Math.max(0,o-p);},0)+D.tarjetas.filter(t=>t.vence&&t.saldo>0).reduce((s,t)=>s+t.saldo,0);
+  const falta=Math.max(0,metaV-rec);
+  const pct=metaV>0?Math.min(100,rec/metaV*100):0;const f=calcFondo();
   set('r-falta',fmt(falta));set('r-disp',fmt(recN));
-  set('r-pct',Math.round(pct)+'%');set('r-meta','Meta: '+fmt(c.total));
+  set('r-pct',Math.round(pct)+'%');set('r-meta','Meta: '+fmt(metaV));
   set('r-f1',fmt(f.mes));set('r-f2',fmt(f.disp));set('r-recmini',fmt(recN));
   const bd=document.getElementById('r-det');if(bd)bd.textContent=pagV>0?'Ingresado: '+fmt(rec)+' — Pagos: -'+fmt(pagV):'';
   const bf=document.getElementById('r-barf');if(bf)bf.style.width=pct+'%';
